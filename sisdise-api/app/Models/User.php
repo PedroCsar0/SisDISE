@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\HasMany; // Importe o HasMany
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class User extends Authenticatable
 {
@@ -23,6 +24,7 @@ class User extends Authenticatable
         'email',
         'password',
         'tipo', // Adicionado do seu diagrama [cite: 176]
+        'empresa_id',
     ];
 
     /**
@@ -54,5 +56,13 @@ class User extends Authenticatable
     public function diagnosticos(): HasMany
     {
         return $this->hasMany(Diagnostico::class);
+    }
+
+    /**
+     * Define o relacionamento: Um Usuário (Gestor) pertence a uma Empresa.
+     */
+    public function empresa(): BelongsTo
+    {
+        return $this->belongsTo(Empresa::class);
     }
 }

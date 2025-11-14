@@ -24,10 +24,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin')->middleware('can:ser-admin')->group(function () {
         // GET /api/admin/parametros
         Route::get('/parametros', [AdminController::class, 'getParametros']);
-
         // PUT /api/admin/parametros/{itemParametro}
         Route::put('/parametros/{itemParametro}', [AdminController::class, 'updateParametro']);
-
         // PUT /api/admin/grupos/{grupoParametro}
         Route::put('/grupos/{grupoParametro}', [AdminController::class, 'updateGrupo']);
     });
@@ -37,6 +35,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // CRUD de Empresas
     // (GET, POST, PUT, DELETE para /api/empresas)
     Route::apiResource('empresas', EmpresaController::class);
+    Route::get('/questionario', [DiagnosticoController::class, 'getQuestionario']);
+    Route::post('/diagnosticos', [DiagnosticoController::class, 'store']);
 
     // Rotas de Diagnóstico
     Route::get('/questionario', [DiagnosticoController::class, 'getQuestionario']);
@@ -45,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/diagnosticos', [DiagnosticoController::class, 'index']);
     Route::get('/relatorio/{diagnostico}/pdf', [DiagnosticoController::class, 'downloadPDF']);
     Route::get('/diagnosticos/{diagnostico}/pges', [DiagnosticoController::class, 'gerarPGES']);
+    Route::get('/diagnosticos/{diagnostico}/pges/pdf', [DiagnosticoController::class, 'downloadPGES']);
 
     // Rota padrão para buscar o usuário logado
     Route::get('/user', function (Request $request) {

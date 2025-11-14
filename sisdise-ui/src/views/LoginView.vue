@@ -39,11 +39,11 @@
 
         <div>
           <button
-            type="submit"
-            class="w-full px-4 py-2 font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Login
-          </button>
+          type="submit"
+          class="w-full px-4 py-2 font-medium text-white bg-primary rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-light"
+        >
+          Login
+        </button>
         </div>
       </form>
     </div>
@@ -54,34 +54,34 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/api.js'; // Nosso Axios (agora com a baseURL /api)
+import { useUserStore } from '@/stores/userStore';
 
 const email = ref('teste@avaliador.com');
 const password = ref('senha123');
 const errorMessage = ref('');
 const router = useRouter();
+const userStore = useUserStore();
 
 const handleLogin = async () => {
   errorMessage.value = '';
 
   try {
-    // NÃO precisamos mais do 'csrf-cookie'
-
-    // PASSO 1: Chama a nova rota /api/login
-    // (O Axios automaticamente usa a baseURL: '.../api/login')
+    // PASSO 1: Chama a rota /api/login
     const response = await api.post('/login', {
       email: email.value,
       password: password.value,
     });
 
-    // PASSO 2: Pega o token da resposta
     const token = response.data.token;
 
-    // PASSO 3: Salva o token no localStorage
+    // PASSO 2: Salva o token no localStorage
     localStorage.setItem('authToken', token);
 
-    // PASSO 4: Informa ao Axios para USAR este token a partir de agora
-    // (Isso adiciona o header 'Authorization' em todas as futuras chamadas)
+    // PASSO 3: Informa ao Axios para USAR este token
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+    // PASSO 4: (A LINHA NOVA E IMPORTANTE) Salva os dados do usuário no "armazém"
+    userStore.setUser(response.data.user);
 
     // PASSO 5: Redireciona para o Dashboard
     router.push('/dashboard');

@@ -1,85 +1,65 @@
-<script setup>
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <div class="min-h-screen bg-gray-50">
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+    <header v-if="showHeader" class="bg-white shadow-md sticky top-0 z-50">
+      <nav class="container mx-auto max-w-5xl px-4 py-3 flex justify-between items-center">
 
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
+        <router-link to="/dashboard" class="flex items-center space-x-2">
+          <img class="h-10 w-auto" src="/src/assets/logo.svg" alt="SisDISE Logo" />
+          <span class="text-xl font-bold text-gray-800">SisDISE Relatórios ESG</span>
+        </router-link>
+
+        <div v-if="userStore.user" class="flex items-center space-x-4">
+
+          <router-link
+            v-if="userStore.user.tipo === 'Administrador'"
+            to="/admin"
+            class="px-3 py-1 text-sm font-medium text-white bg-red-600 rounded-full hover:bg-red-700"
+          >
+            Painel Admin
+          </router-link>
+
+          <span class="text-gray-600">Olá, {{ userStore.user.name }}</span>
+
+          <button @click="handleLogout" class="px-3 py-1 text-sm font-medium text-primary-dark bg-primary-light/20 rounded-full hover:bg-primary-light/40">
+          Sair
+        </button>
+        </div>
       </nav>
-    </div>
-  </header>
+    </header>
 
-  <RouterView />
+    <main class="container mx-auto max-w-5xl p-4 mt-6">
+      <RouterView />
+    </main>
+
+  </div>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
+<script setup>
+import { computed } from 'vue';
+import { RouterView, useRoute, useRouter } from 'vue-router';
+import { useUserStore } from '@/stores/userStore'; // <-- Vamos criar este
+import api from '@/api.js';
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
+const route = useRoute();
+const router = useRouter();
+const userStore = useUserStore();
 
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
+// Propriedade computada que verifica se o header deve ser mostrado
+const showHeader = computed(() => {
+  // Oculta o cabeçalho na página de login
+  return route.name !== 'login';
+});
 
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
+// Função de Logout (agora fica centralizada aqui)
+const handleLogout = async () => {
+  try {
+    localStorage.removeItem('authToken');
+    delete api.defaults.headers.common['Authorization'];
+    userStore.clearUser(); // Limpa o utilizador do "store"
+    router.push('/login');
+  } catch (error) {
+    console.error('Erro no logout:', error);
   }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
-}
-</style>
+};
+</script>

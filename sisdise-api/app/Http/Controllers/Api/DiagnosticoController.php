@@ -188,14 +188,21 @@ class DiagnosticoController extends Controller
 
     public function index(Request $request)
     {
-        // Busca todos os diagnósticos
-        // pertencentes ao usuário que está fazendo a requisição
-        $diagnosticos = $request->user()->diagnosticos()
-            ->with('empresa') // Carrega os dados da empresa (útil em breve)
-            ->latest()        // Ordena pelos mais recentes primeiro
-            ->get();
+    $user = $request->user();
 
-        return $diagnosticos;
+    // Se for Gestor Empresarial, filtre pela 'empresa_id' dele
+    if ($user->tipo === 'Gestor Empresarial') {
+        return $user->empresa
+            ->diagnosticos() // Pega os diagnósticos DA EMPRESA
+            ->with('empresa')
+            ->latest()
+            ->get();
+        }
+
+        // Se for Admin ou Avaliador, mostre TODOS os diagnósticos
+        return \App\Models\Diagnostico::with('empresa')
+        ->latest()
+        ->get();
     }
 
     public function downloadPDF(\App\Models\Diagnostico $diagnostico)
@@ -221,7 +228,7 @@ class DiagnosticoController extends Controller
     }
 
     public function gerarPGES(\App\Models\Diagnostico $diagnostico)
-{
+    {
     // 1. (Opcional) Verificação de Segurança:
     if ($diagnostico->user_id !== auth()->id()) {
        return response()->json(['message' => 'Não autorizado'], 403);
@@ -239,5 +246,35 @@ class DiagnosticoController extends Controller
 
     // 4. Retorna a lista de itens a melhorar
     return response()->json($itensParaMelhorar->values());
-}
+    }
+
+    public function downloadPGES(\App\Models\Diagnostico $diagnostico)
+    {
+    // 1. (Opcional) Verificação de Segurança
+    if ($diagnostico->user_id !== auth()->id()) {
+       return response()->json(['message' => 'Não autorizado'], 403);
+    }
+
+    // 2. A Lógica Principal (COPIADA do método gerarPGES)
+    // Carrega todos os 39 itens (respostas) deste diagnóstico
+    // e, para cada item, carrega sua "pergunta" (itemParametro).
+    $itensComNotas = $diagnostico->itens()->with('itemParametro')->get();
+
+    // 3. Filtra apenas os itens com "nota baixa" (<= 2)
+    $itensParaMelhorar = $itensComNotas->filter(function ($item) {
+        return $item->nota <= 2;
+    });
+
+    // 4. Gera o PDF usando o "molde" Blade que criamos
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.pges', [
+        'diagnostico' => $diagnostico,
+        'itensParaMelhorar' => $itensParaMelhorar->values()
+    ]);
+
+    // 5. Define o nome do arquivo e o envia para o navegador
+    $fileName = 'SisDISE_PlanoDeAcao_' . $diagnostico->id . '.pdf';
+
+    // stream() envia o PDF para o navegador
+    return $pdf->stream($fileName);
+    }
 }

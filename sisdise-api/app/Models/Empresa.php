@@ -28,4 +28,9 @@ class Empresa extends Model
     {
         return $this->hasMany(Diagnostico::class);
     }
+
+    public function gestores(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
 }

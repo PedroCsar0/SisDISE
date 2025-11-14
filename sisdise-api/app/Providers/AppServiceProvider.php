@@ -29,5 +29,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('ser-admin', function (User $user) {
         return $user->tipo === 'Administrador';
         });
+
+        Gate::define('pode-gerir', function (User $user) {
+        // Permite se for Administrador OU Avaliador
+        return $user->tipo === 'Administrador' || $user->tipo === 'Avaliador';
+        });
     }
 }
