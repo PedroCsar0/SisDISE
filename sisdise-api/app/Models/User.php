@@ -65,4 +65,9 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Empresa::class);
     }
+
+    public function empresasCriadas(): HasMany
+    {
+        return $this->hasMany(Empresa::class);
+    }
 }

@@ -18,6 +18,7 @@ class ParametroAvaliacao extends Model
         'descricao',
         'nota',
         'peso',
+        'escore_obtido',
     ];
 
     /**

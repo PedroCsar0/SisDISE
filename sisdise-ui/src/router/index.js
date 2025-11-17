@@ -8,6 +8,12 @@ const routes = [
     redirect: '/login'
   },
   {
+    path: '/register',
+    name: 'register',
+    component: () => import('../views/RegisterView.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('../views/LoginView.vue'),
@@ -24,6 +30,26 @@ const routes = [
     name: 'admin',
     component: () => import('../views/AdminView.vue'),
     // Requer login E uma permissão específica
+    meta: { requiresAuth: true, roles: ['Administrador'] }
+  },
+  {
+    path: '/admin/users',
+    name: 'admin-users',
+    component: () => import('../views/admin/UsersListView.vue'),
+    meta: { requiresAuth: true, roles: ['Administrador'] }
+  },
+  {
+    path: '/admin/users/:id',
+    name: 'admin-user-details',
+    props: true,
+    component: () => import('../views/admin/UserDetailsView.vue'),
+    meta: { requiresAuth: true, roles: ['Administrador'] }
+  },
+  {
+    path: '/admin/users/:id/edit',
+    name: 'admin-user-edit',
+    props: true,
+    component: () => import('../views/admin/UserEditView.vue'),
     meta: { requiresAuth: true, roles: ['Administrador'] }
   },
   {

@@ -11,7 +11,6 @@ export const useUserStore = defineStore('user', {
   actions: {
     async fetchUser() {
       if (this.user) return; // Já temos, não buscar de novo
-
       try {
         const response = await api.get('/user');
         this.user = response.data; // Atribuição direta

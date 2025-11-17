@@ -34,4 +34,29 @@ class AuthController extends Controller
             'token' => $token,
         ]);
     }
+
+    public function register(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed', // exige campo 'password_confirmation'
+            'tipo' => 'required|string|in:Avaliador,Gestor Empresarial', // Admin não pode ser criado aqui
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'tipo' => $validated['tipo'],
+        ]);
+
+        // Cria o token para login imediato
+        $token = $user->createToken('sisdise-auth-token')->plainTextToken;
+
+        return response()->json([
+            'user' => $user,
+            'token' => $token,
+        ], 201);
+    }
 }

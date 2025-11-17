@@ -3,13 +3,6 @@
     <p class="text-lg text-gray-600">Carregando parâmetros...</p>
   </div>
 
-  <div v-if="errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md mb-6">
-    {{ errorMessage }}
-  </div>
-  <div v-if="successMessage" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-md mb-6">
-    {{ successMessage }}
-  </div>
-
   <div v-else class="space-y-6">
     <h1 class="text-3xl font-bold text-gray-900 mb-6">Configurar Parâmetros e Pesos</h1>
 
@@ -81,70 +74,59 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/api.js';
-import { useUserStore } from '@/stores/userStore'; // Importar o store
+import { useUserStore } from '@/stores/userStore';
+import { useToast } from "vue-toastification"; // <-- 1. IMPORTE
 
 const router = useRouter();
-const userStore = useUserStore(); // Usar o store
+const userStore = useUserStore();
+const toast = useToast(); // <-- 2. INICIE
+
 const grupos = ref([]);
 const isLoading = ref(true);
-const errorMessage = ref('');
-const successMessage = ref('');
+// errorMessage e successMessage foram removidos
 
-// 1. Busca os dados quando a página carrega
 const fetchParametros = async () => {
   try {
     isLoading.value = true;
-    errorMessage.value = '';
-
-    // Garantir que o utilizador está carregado (para o 'Gate' funcionar no recarregamento)
-    if (!userStore.user.value) {
+    if (!userStore.user) {
       await userStore.fetchUser();
     }
-
     const response = await api.get('/admin/parametros');
     grupos.value = response.data;
-
   } catch (error) {
     console.error('Erro ao buscar parâmetros:', error);
     if (error.response && error.response.status === 403) {
-      errorMessage.value = 'Acesso Negado. Você não tem permissão de Administrador.';
+      toast.error('Acesso Negado. Você não tem permissão de Administrador.'); // <-- MUDANÇA
     } else if (error.response && error.response.status === 401) {
-      router.push('/login'); // Token expirou
+      router.push('/login');
     } else {
-      errorMessage.value = 'Falha ao carregar parâmetros.';
+      toast.error('Falha ao carregar parâmetros.'); // <-- MUDANÇA
     }
   } finally {
     isLoading.value = false;
   }
 };
 
-// 2. Função para ATUALIZAR UM GRUPO (ex: Sdt1)
 const updateGrupo = async (grupo) => {
   try {
-    successMessage.value = '';
-    errorMessage.value = '';
     await api.put(`/admin/grupos/${grupo.id}`, grupo);
-    successMessage.value = `Grupo "${grupo.nome}" atualizado com sucesso!`;
+    toast.success(`Grupo "${grupo.nome}" atualizado com sucesso!`); // <-- MUDANÇA
   } catch (error) {
     console.error('Erro ao atualizar grupo:', error);
-    errorMessage.value = 'Falha ao atualizar o grupo.';
+    toast.error('Falha ao atualizar o grupo.'); // <-- MUDANÇA
   }
 };
 
-// 3. Função para ATUALIZAR UM PARÂMETRO (ex: 1.1.1)
 const updateParametro = async (item) => {
   try {
-    successMessage.value = '';
-    errorMessage.value = '';
     await api.put(`/admin/parametros/${item.id}`, item);
-    successMessage.value = `Parâmetro "${item.codigo_item}" atualizado com sucesso!`;
+    toast.success(`Parâmetro "${item.codigo_item}" atualizado com sucesso!`); // <-- MUDANÇA
   } catch (error) {
     console.error('Erro ao atualizar parâmetro:', error);
-    errorMessage.value = 'Falha ao atualizar o parâmetro.';
+    toast.error('Falha ao atualizar o parâmetro.'); // <-- MUDANÇA
   }
 };
 
-// 4. Hook de Carregamento
 onMounted(() => {
   fetchParametros();
 });

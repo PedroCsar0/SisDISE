@@ -11,10 +11,6 @@
             {{ isEditing ? 'Editar Empresa' : 'Cadastrar Nova Empresa' }}
           </h2>
 
-          <div v-if="formMessage" :class="isError ? 'text-red-600' : 'text-green-600'">
-            {{ formMessage }}
-          </div>
-
           <div>
             <label for="razaoSocial" class="block text-sm font-medium text-gray-700">Razão Social</label>
             <input v-model="newEmpresa.razaoSocial" type="text" id="razaoSocial" required class="input-style" />
@@ -64,58 +60,92 @@
 
           <div v-if="isLoading" class="mt-4">Carregando empresas...</div>
 
-          <ul v-else class="mt-4 space-y-3 max-h-96 overflow-y-auto">
-            <li v-for="empresa in empresas" :key="empresa.id" class="p-3 border rounded-md flex justify-between items-center">
-              <div>
-                <p class="font-semibold text-gray-900">{{ empresa.razaoSocial }}</p>
-                <p class="text-sm text-gray-600">CNPJ: {{ empresa.cnpj }}</p>
-                <p class="text-sm text-gray-600">{{ empresa.cidade }} - {{ empresa.estado }}</p>
+          <ul v-else class="mt-4 space-y-4 max-h-96 overflow-y-auto">
+            <li v-for="empresa in empresas" :key="empresa.id" class="p-4 border rounded-md">
+
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="font-semibold text-gray-900">{{ empresa.razaoSocial }}</p>
+                  <p class="text-sm text-gray-600">CNPJ: {{ empresa.cnpj }}</p>
+                </div>
+                <div
+                  v-if="userStore.user && (userStore.user.tipo === 'Administrador' || userStore.user.id === empresa.user_id)"
+                  class="flex space-x-2"
+                >
+                  <button @click="startEdit(empresa)" class="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">Editar</button>
+                  <button @click="handleDelete(empresa.id)" class="px-3 py-1 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700">Excluir</button>
+                </div>
               </div>
 
-              <div class="flex space-x-2">
+              <div class="mt-4 border-t pt-3">
+                <h4 class="text-sm font-semibold text-gray-700">Gestores Vinculados:</h4>
+                <ul v-if="empresa.gestores && empresa.gestores.length > 0" class="list-disc list-inside mt-2 text-sm text-gray-600">
+                  <li v-for="gestor in empresa.gestores" :key="gestor.id">{{ gestor.name }} ({{ gestor.email }})</li>
+                </ul>
+                <p v-else class="text-sm text-gray-500 mt-2">Nenhum gestor vinculado.</p>
+
                 <button
-                  @click="startEdit(empresa)"
-                  class="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                  v-if="userStore.user && (userStore.user.tipo === 'Administrador' || userStore.user.id === empresa.user_id)"
+                  @click="openLinkModal(empresa)"
+                  class="mt-3 px-3 py-1 text-xs font-medium text-white bg-gray-700 rounded-md hover:bg-gray-900"
                 >
-                  Editar
-                </button>
-                <button
-                  @click="handleDelete(empresa.id)"
-                  class="px-3 py-1 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-                >
-                  Excluir
+                  + Vincular Novo Gestor
                 </button>
               </div>
             </li>
-            <li v-if="empresas.length === 0" class="text-gray-500">
-              Nenhuma empresa cadastrada.
-            </li>
+
+            <li v-if="empresas.length === 0" class="text-gray-500">Nenhuma empresa cadastrada.</li>
           </ul>
         </div>
       </div>
 
     </div>
+
+    <div v-if="showLinkModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Vincular Gestor</h2>
+        <p class="mb-4">Selecione um gestor disponível para vincular à empresa: <strong class="text-primary-dark">{{ linkingEmpresa.razaoSocial }}</strong></p>
+
+        <div v-if="isLinkingLoading">Carregando gestores...</div>
+
+        <div v-else>
+          <select v-model="selectedGestorId" class="input-style bg-white w-full">
+            <option :value="null" disabled>Selecione um gestor</option>
+            <option v-for="gestor in gestoresDisponiveis" :key="gestor.id" :value="gestor.id">
+              {{ gestor.name }} ({{ gestor.email }})
+            </option>
+          </select>
+          <p v-if="gestoresDisponiveis.length === 0" class="text-sm text-red-500 mt-2">
+            Nenhum gestor disponível encontrado. Peça para o gestor se cadastrar no sistema.
+          </p>
+        </div>
+
+        <div class="flex justify-end space-x-4 mt-6">
+          <button @click="closeLinkModal" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
+            Cancelar
+          </button>
+          <button
+            @click="handleLinkGestor"
+            :disabled="!selectedGestorId || isSubmitting"
+            class="px-4 py-2 text-white bg-primary rounded-md hover:bg-primary-dark disabled:bg-gray-400"
+          >
+            {{ isSubmitting ? 'Salvando...' : 'Confirmar Vínculo' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <style scoped>
-/* Estilos dos inputs corrigidos (sem erros de linter) */
 .input-style {
-  margin-top: 0.25rem;
-  width: 100%;
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-  border-width: 1px;
-  border-color: #D1D5DB; /* border-gray-300 */
-  border-radius: 0.375rem; /* rounded-md */
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+  margin-top: 0.25rem; width: 100%; padding-left: 0.75rem; padding-right: 0.75rem;
+  padding-top: 0.5rem; padding-bottom: 0.5rem; border-width: 1px;
+  border-color: #D1D5DB; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 .input-style:focus {
-  outline: none;
-  border-color: #6366f1; /* focus:border-indigo-500 */
-  --tw-ring-color: #6366f1; /* focus:ring-indigo-500 */
+  outline: none; border-color: #6366f1; --tw-ring-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
 }
 </style>
@@ -124,59 +154,44 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/api.js';
-import { useUserStore } from '@/stores/userStore'; // Importar o store
+import { useUserStore } from '@/stores/userStore';
+import { useToast } from "vue-toastification";
 
 const router = useRouter();
-const userStore = useUserStore(); // Usar o store
+const userStore = useUserStore();
+const toast = useToast();
 
-// --- Estado da Lista ---
 const empresas = ref([]);
 const isLoading = ref(true);
 
-// --- Estado do Formulário ---
 const isSubmitting = ref(false);
-const formMessage = ref('');
-const isError = ref(false);
 const isEditing = ref(false);
 const editingEmpresaId = ref(null);
+const newEmpresa = reactive({ razaoSocial: '', cnpj: '', setor: '', cidade: '', estado: '' });
 
-const newEmpresa = reactive({
-  razaoSocial: '',
-  cnpj: '',
-  setor: '',
-  cidade: '',
-  estado: '',
-});
+const showLinkModal = ref(false);
+const isLinkingLoading = ref(false);
+const linkingEmpresa = ref(null);
+const gestoresDisponiveis = ref([]);
+const selectedGestorId = ref(null);
 
-// Função para limpar o formulário
 const resetForm = () => {
-  newEmpresa.razaoSocial = '';
-  newEmpresa.cnpj = '';
-  newEmpresa.setor = '';
-  newEmpresa.cidade = '';
-  newEmpresa.estado = '';
-  isEditing.value = false;
-  editingEmpresaId.value = null;
+  newEmpresa.razaoSocial = ''; newEmpresa.cnpj = ''; newEmpresa.setor = '';
+  newEmpresa.cidade = ''; newEmpresa.estado = '';
+  isEditing.value = false; editingEmpresaId.value = null;
 };
 
-// --- Lógica da API ---
-
-// 1. Busca a lista de empresas quando a página é carregada
 const fetchEmpresas = async () => {
   try {
     isLoading.value = true;
-
-    // Garantir que o utilizador está carregado (para o 'Gate' funcionar no recarregamento)
     if (!userStore.user) {
       await userStore.fetchUser();
     }
-
     const response = await api.get('/empresas');
     empresas.value = response.data;
-  } catch (error) {
+  } catch (error) { // 'error' é usado aqui
     console.error('Erro ao buscar empresas:', error);
-    formMessage.value = 'Falha ao carregar lista de empresas.';
-    isError.value = true;
+    toast.error('Falha ao carregar lista de empresas.');
     if (error.response && error.response.status === 401) {
       router.push('/login');
     }
@@ -185,39 +200,28 @@ const fetchEmpresas = async () => {
   }
 };
 
-// 2. Salva (Cria OU Atualiza) a empresa
 const handleSave = async () => {
   isSubmitting.value = true;
-  formMessage.value = '';
-  isError.value = false;
-
   try {
     if (isEditing.value) {
-      // --- LÓGICA DE ATUALIZAÇÃO (UPDATE) ---
       const id = editingEmpresaId.value;
       const response = await api.put(`/empresas/${id}`, newEmpresa);
-
       const index = empresas.value.findIndex(e => e.id === id);
       if (index !== -1) {
-        empresas.value[index] = response.data;
+        empresas.value[index] = { ...empresas.value[index], ...response.data };
       }
-      formMessage.value = 'Empresa atualizada com sucesso!';
-
+      toast.success('Empresa atualizada com sucesso!');
     } else {
-      // --- LÓGICA DE CRIAÇÃO (CREATE) ---
       const response = await api.post('/empresas', newEmpresa);
       empresas.value.push(response.data);
-      formMessage.value = 'Empresa salva com sucesso!';
+      toast.success('Empresa salva com sucesso!');
     }
-
     resetForm();
-
-  } catch (error) {
-    isError.value = true;
+  } catch (error) { // 'error' é usado aqui
     if (error.response && error.response.status === 422) {
-      formMessage.value = 'Erro de validação: ' + error.response.data.message;
+      toast.error('Erro de validação: ' + error.response.data.message);
     } else {
-      formMessage.value = 'Ocorreu um erro ao salvar.';
+      toast.error('Ocorreu um erro ao salvar.');
     }
     console.error('Erro ao salvar empresa:', error);
   } finally {
@@ -225,54 +229,86 @@ const handleSave = async () => {
   }
 };
 
-// 3. Prepara o formulário para edição
 const startEdit = (empresa) => {
-  isEditing.value = true;
-  editingEmpresaId.value = empresa.id;
-
-  newEmpresa.razaoSocial = empresa.razaoSocial;
-  newEmpresa.cnpj = empresa.cnpj;
-  newEmpresa.setor = empresa.setor;
-  newEmpresa.cidade = empresa.cidade;
-  newEmpresa.estado = empresa.estado;
-
-  formMessage.value = '';
-  isError.value = false;
-  window.scrollTo(0, 0);
+  isEditing.value = true; editingEmpresaId.value = empresa.id;
+  newEmpresa.razaoSocial = empresa.razaoSocial; newEmpresa.cnpj = empresa.cnpj;
+  newEmpresa.setor = empresa.setor; newEmpresa.cidade = empresa.cidade;
+  newEmpresa.estado = empresa.estado; window.scrollTo(0, 0);
 };
-
-// 4. Limpa o formulário e sai do modo de edição
-const cancelEdit = () => {
-  resetForm();
-};
-
-// 5. Exclui uma empresa
+const cancelEdit = () => { resetForm(); };
 const handleDelete = async (id) => {
-  if (!window.confirm('Tem certeza de que deseja excluir esta empresa? Esta ação não pode ser desfeita.')) {
-    return;
-  }
-
+  if (!window.confirm('Tem certeza?')) return;
   try {
-    formMessage.value = '';
-    isError.value = false;
-
     await api.delete(`/empresas/${id}`);
-
     empresas.value = empresas.value.filter(e => e.id !== id);
-    formMessage.value = 'Empresa excluída com sucesso!';
-
-  } catch (error) {
-    isError.value = true;
+    toast.success('Empresa excluída com sucesso!');
+  } catch (error) { // 'error' é usado aqui
     if (error.response && error.response.status === 409) {
-      formMessage.value = error.response.data.message;
+      toast.error(error.response.data.message);
     } else {
-      formMessage.value = 'Ocorreu um erro ao excluir.';
+      toast.error('Ocorreu um erro ao excluir.');
     }
     console.error('Erro ao excluir empresa:', error);
   }
 };
 
-// --- Hook de Carregamento ---
+const openLinkModal = async (empresa) => {
+  linkingEmpresa.value = empresa;
+  showLinkModal.value = true;
+  isLinkingLoading.value = true;
+  selectedGestorId.value = null;
+
+  try {
+    const response = await api.get('/gestores-disponiveis');
+    gestoresDisponiveis.value = response.data;
+  } catch (error) { // 'error' é usado aqui
+    console.error('Erro ao buscar gestores:', error);
+    toast.error('Não foi possível buscar os gestores disponíveis.');
+    closeLinkModal();
+  } finally {
+    isLinkingLoading.value = false;
+  }
+};
+
+const closeLinkModal = () => {
+  showLinkModal.value = false;
+  linkingEmpresa.value = null;
+  gestoresDisponiveis.value = [];
+};
+
+const handleLinkGestor = async () => {
+  if (!selectedGestorId.value) return;
+  isSubmitting.value = true;
+
+  try {
+    const empresaId = linkingEmpresa.value.id;
+    const response = await api.post(`/empresas/${empresaId}/vincular-gestor`, {
+      user_id: selectedGestorId.value
+    });
+
+    const index = empresas.value.findIndex(e => e.id === empresaId);
+    if (index !== -1) {
+      if (!empresas.value[index].gestores) {
+        empresas.value[index].gestores = [];
+      }
+      empresas.value[index].gestores.push(response.data);
+    }
+
+    toast.success('Gestor vinculado com sucesso!');
+    closeLinkModal();
+
+  } catch (error) { // --- ESTA É A CORREÇÃO ---
+    if (error.response && error.response.status === 409) {
+      toast.error(error.response.data.message);
+    } else {
+      toast.error('Erro ao vincular o gestor.');
+    }
+    console.error('Erro ao vincular gestor:', error); // <-- A LINHA QUE FALTAVA
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
 onMounted(() => {
   fetchEmpresas();
 });

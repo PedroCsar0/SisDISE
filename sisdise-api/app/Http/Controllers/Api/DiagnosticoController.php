@@ -6,14 +6,14 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use App\Models\GrupoParametro; // Template dos 6 Grupos (Sdt1, Sdt2...)
-use App\Models\ItemParametro;  // Template dos 39 Itens (1.1.1, 1.1.2...)
+use App\Models\GrupoParametro;
+use App\Models\ItemParametro;
 use App\Models\Diagnostico;
 use App\Models\Principio;
-use App\Models\ParametroAvaliacao; // Tabela para salvar os 6 resultados (Sdt1, Sdt2...)
+use App\Models\ParametroAvaliacao;
 use App\Models\Empresa;
 use App\Models\DiagnosticoItem;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\Facade\Pdf; // Importe o PDF
 
 class DiagnosticoController extends Controller
 {
@@ -23,108 +23,132 @@ class DiagnosticoController extends Controller
      */
     public function getQuestionario()
     {
-        // Carrega os 6 Grupos (Sdt1...) e, para cada um, carrega seus Itens (1.1.1...)
         $questionario = GrupoParametro::with('itemParametros')->get();
-
         return response()->json($questionario);
     }
 
     /**
+     * Rota GET /api/diagnosticos
+     * Lista diagnósticos baseado no tipo de usuário.
+     */
+    public function index(Request $request)
+    {
+        $user = $request->user();
+
+        // Se for Gestor Empresarial
+        if ($user->tipo === 'Gestor Empresarial') {
+            if (!$user->empresa) {
+                return response()->json([], 200); // Retorna vazio se o gestor não tem empresa
+            }
+            return $user->empresa
+                ->diagnosticos()
+                ->with('empresa')
+                ->latest()
+                ->get();
+        }
+
+        // Se for Admin
+        if ($user->tipo === 'Administrador') {
+             return \App\Models\Diagnostico::with('empresa')
+                ->latest()
+                ->get();
+        }
+
+        // Se for Avaliador, mostra apenas os das suas empresas
+        $empresasDoAvaliador = $user->empresasCriadas()->pluck('id');
+        return \App\Models\Diagnostico::whereIn('empresa_id', $empresasDoAvaliador)
+            ->with('empresa')
+            ->latest()
+            ->get();
+    }
+
+
+    /**
      * Rota POST /api/diagnosticos
      * Recebe as 39 respostas, calcula os escores e salva o diagnóstico.
-     * Esta é a lógica central do SisDISE, baseada no Manual Técnico.
      */
     public function store(Request $request)
     {
-        // 1. VALIDAÇÃO DOS DADOS
+        // 1. VALIDAÇÃO (Corrigida para incluir 'titulo')
         $dadosValidados = $request->validate([
             'empresa_id' => 'required|integer|exists:empresas,id',
-            'respostas'  => 'required|array|min:39', // Total de 39 respostas
+            'titulo'     => 'required|string|max:255', // <-- CORRIGIDO
+            'respostas'  => 'required|array|min:39',
             'respostas.*.item_parametro_id' => 'required|integer|exists:item_parametros,id',
-            'respostas.*.nota' => 'required|integer|min:0|max:5', // Tabela 3 [cite: 129]
+            'respostas.*.nota' => 'required|integer|min:0|max:5',
         ]);
 
         // 2. PREPARAÇÃO DOS DADOS
-
-        // Carrega os 6 Grupos (Sdt1, Sma1...) com seus pesos (pi) e Nmax
-        $gruposTemplate = GrupoParametro::all()->keyBy('id');
-
-        // Carrega os 39 Itens e agrupa-os por 'grupo_parametro_id'
-        // Teremos um mapa: { 1 (Sdt1) => [item 1, item 2...], 2 (Sdt2) => [item 15...] }
+        $gruposTemplate = GrupoParametro::all();
         $itensPorGrupo = ItemParametro::all()->groupBy('grupo_parametro_id');
-
-        // Converte as respostas de [ {id: 1, nota: 3}, ... ] para [ 1 => 3, ... ]
-        // Facilita a busca da nota (ni) para cada item
         $respostasMap = collect($dadosValidados['respostas'])->pluck('nota', 'item_parametro_id');
 
-        // 3. LÓGICA DE CÁLCULO (DENTRO DE UMA TRANSAÇÃO)
+        // 3. LÓGICA DE CÁLCULO
         $diagnosticoCompleto = DB::transaction(function () use ($dadosValidados, $gruposTemplate, $itensPorGrupo, $respostasMap) {
 
             $user = Auth::user();
-            $empresa = Empresa::find($dadosValidados['empresa_id']);
 
-            // 3a. Cria o Diagnóstico "pai" (Etapa 4)
+            // 3a. Cria o Diagnóstico "pai" (Corrigido para incluir 'titulo')
             $diagnostico = Diagnostico::create([
                 'user_id'       => $user->id,
-                'empresa_id'    => $empresa->id,
+                'empresa_id'    => $dadosValidados['empresa_id'],
+                'titulo'        => $dadosValidados['titulo'], // <-- CORRIGIDO
                 'dataAnalise'   => now(),
-                'escoreFinal'   => 0, // Será atualizado
+                'escoreFinal'   => 0,
                 'classificacao' => 'Processando...',
             ]);
 
-            // 3b. Cria os 3 Princípios "filhos" (Etapa 3)
+            // 3b. Cria os 3 Princípios "filhos"
             $principioSdt = $diagnostico->principios()->create(['nomePrincipio' => 'Direitos humanos e trabalho', 'escoreObtido' => 0]);
             $principioSma = $diagnostico->principios()->create(['nomePrincipio' => 'Meio ambiente', 'escoreObtido' => 0]);
             $principioSac = $diagnostico->principios()->create(['nomePrincipio' => 'Anticorrupção', 'escoreObtido' => 0]);
 
-            // Map para saber a qual princípio (Sdt, Sma, Sac) cada grupo (Sdt1, Sdt2...) pertence
             $mapPrincipioGrupo = [
-                'Sdt1' => $principioSdt,
-                'Sdt2' => $principioSdt,
-                'Sma1' => $principioSma,
-                'Sma2' => $principioSma,
-                'Sma3' => $principioSma,
+                'Sdt1' => $principioSdt, 'Sdt2' => $principioSdt,
+                'Sma1' => $principioSma, 'Sma2' => $principioSma, 'Sma3' => $principioSma,
                 'Sac1' => $principioSac,
             ];
 
-            // 3c. Itera sobre os 6 Grupos de Parâmetros (Etapa 2)
+            // 3c. Itera sobre os 6 Grupos de Parâmetros
             foreach ($gruposTemplate as $grupo) {
 
-                // Pega os dados deste grupo (pi e Nmax) da Tabela 4 [cite: 149]
-                $pi = $grupo->peso;
+                $pi = $grupo->peso; // <-- Busca o peso correto (ex: 2.0)
                 $nmax = $grupo->nota_maxima_grupo;
-                $somaNotasGrupo_Eni = 0; // O "Σni" da Tabela 4
+                $somaNotasGrupo_Eni = 0;
 
-                // Pega todos os itens (perguntas) que pertencem a este grupo
                 $itensDesteGrupo = $itensPorGrupo->get($grupo->id) ?? collect();
 
-                // Soma as notas (ni) das respostas do usuário para este grupo
+                // Soma as notas (ni) E salva os 39 itens individuais
                 foreach ($itensDesteGrupo as $item) {
                     $notaItem = $respostasMap->get($item->id) ?? 0;
                     $somaNotasGrupo_Eni += $notaItem;
+
                     $diagnostico->itens()->create([
                         'item_parametro_id' => $item->id,
                         'nota' => $notaItem
                     ]);
                 }
 
-                // ** A MÁGICA: Equação 01 **
+                // ** A MÁGICA: Equação 01 (do PDF) **
                 $escoreGrupo_si = 0;
                 if ($nmax > 0) {
+                    // Ex: 100 * (42 / 70) * 2.0 = 120
                     $escoreGrupo_si = 100 * ($somaNotasGrupo_Eni / $nmax) * $pi;
                 }
 
-                // 3d. Salva o resultado deste Grupo (Sdt1, Sdt2...) na tabela 'parametro_avaliacaos'
-                // e associa ao Princípio correto (Sdt, Sma, Sac)
+                // 3d. Salva o resultado deste Grupo (Corrigido para salvar o Escore Ponderado)
                 $principioPai = $mapPrincipioGrupo[$grupo->codigo];
+
+                // --- ESTA É A CORREÇÃO CRÍTICA (que causa o bug do "0") ---
                 $principioPai->parametroAvaliacaos()->create([
                     'descricao'     => $grupo->nome,
-                    'nota'          => $somaNotasGrupo_Eni, // Armazenamos o Σni
+                    'nota'          => $somaNotasGrupo_Eni,
                     'peso'          => $pi,
-                    'escore_obtido' => $escoreGrupo_si,
+                    'escore_obtido' => $escoreGrupo_si, // <-- CORRIGIDO (Salva o Escore, ex: 120)
                 ]);
+                // --- FIM DA CORREÇÃO ---
 
-                // 3e. Acumula o escore no Princípio "pai" (Equações 02, 03, 04)
+                // 3e. Acumula o escore no Princípio "pai"
                 $principioPai->escoreObtido += $escoreGrupo_si;
             }
 
@@ -133,10 +157,10 @@ class DiagnosticoController extends Controller
             $principioSma->save();
             $principioSac->save();
 
-            // 3g. Calcula o Escore Final (Equação 05)
+            // 3g. Calcula o Escore Final
             $escoreFinal_Sf = $principioSdt->escoreObtido + $principioSma->escoreObtido + $principioSac->escoreObtido;
 
-            // 3h. Determina a Classificação (Tabela 6) [cite: 173]
+            // 3h. Determina a Classificação
             $classificacao = $this->getClassificacao($escoreFinal_Sf);
 
             // 3i. Atualiza o Diagnóstico "pai" com o resultado final
@@ -145,136 +169,79 @@ class DiagnosticoController extends Controller
                 'classificacao' => $classificacao,
             ]);
 
-            // Recarrega o diagnóstico com todos os seus "filhos" (Princípios e Parâmetros)
-            return $diagnostico->load('principios.parametroAvaliacaos');
+            return $diagnostico->load('empresa', 'principios.parametroAvaliacaos');
         });
 
-        // 4. ENVIA A RESPOSTA
-        return response()->json($diagnosticoCompleto, 201); // 201 = "Created"
+        return response()->json($diagnosticoCompleto, 201);
     }
 
 
     /**
-     * Função auxiliar para determinar a classificação baseada no escore.
-     * Tabela 6 do Manual Técnico [cite: 173]
+     * Rota GET /api/diagnosticos/{diagnostico}
+     * Mostra um único diagnóstico salvo (Corrigido para carregar empresa).
+     */
+    public function show(Diagnostico $diagnostico)
+    {
+        // Carrega a empresa E os princípios/parâmetros (para o modal)
+        return $diagnostico->load('empresa', 'principios.parametroAvaliacaos');
+    }
+
+    /**
+     * Função auxiliar para determinar a classificação
      */
     private function getClassificacao(float $escore): string
     {
-        if ($escore <= 250) {
-            return "Sustentabilidade inexistente";
-        }
-        if ($escore <= 500) {
-            return "Baixa sustentabilidade";
-        }
-        if ($escore <= 750) {
-            // Estudo de caso (532) cai aqui [cite: 192]
-            return "Sustentabilidade moderada";
-        }
+        if ($escore <= 250) { return "Sustentabilidade inexistente"; }
+        if ($escore <= 500) { return "Baixa sustentabilidade"; }
+        if ($escore <= 750) { return "Sustentabilidade moderada"; }
         return "Sustentável";
     }
 
-    public function show(\App\Models\Diagnostico $diagnostico)
+    /**
+     * Rota GET /api/relatorio/{diagnostico}/pdf
+     * Gera e baixa o relatório em PDF.
+     */
+    public function downloadPDF(Diagnostico $diagnostico)
     {
-        // O "Route Model Binding" do Laravel já encontra o diagnóstico pelo ID.
-        // Apenas carregamos os "filhos" (princípios e parâmetros) e o retornamos.
-
-        // Opcional: Adicionar verificação de segurança
-        // if ($diagnostico->user_id !== auth()->id()) {
-        //     return response()->json(['message' => 'Não autorizado'], 403);
-        // }
-
-        return $diagnostico->load('principios.parametroAvaliacaos');
-    }
-
-    public function index(Request $request)
-    {
-    $user = $request->user();
-
-    // Se for Gestor Empresarial, filtre pela 'empresa_id' dele
-    if ($user->tipo === 'Gestor Empresarial') {
-        return $user->empresa
-            ->diagnosticos() // Pega os diagnósticos DA EMPRESA
-            ->with('empresa')
-            ->latest()
-            ->get();
-        }
-
-        // Se for Admin ou Avaliador, mostre TODOS os diagnósticos
-        return \App\Models\Diagnostico::with('empresa')
-        ->latest()
-        ->get();
-    }
-
-    public function downloadPDF(\App\Models\Diagnostico $diagnostico)
-    {
-        // 1. (Opcional) Verificação de Segurança:
-        if ($diagnostico->user_id !== auth()->id()) {
-        return response()->json(['message' => 'Não autorizado'], 403);
-        }
-
-        // 2. Carrega os dados (relacionamentos)
-        $diagnostico->load('principios');
-
-        // 3. Gera o PDF usando o "molde" Blade que criamos
+        $diagnostico->load('principios', 'empresa');
         $pdf = Pdf::loadView('pdf.relatorio', [
             'diagnostico' => $diagnostico
         ]);
-
-        // 4. Define o nome do arquivo e o envia para o navegador
-        $fileName = 'SisDISE_Relatorio_' . $diagnostico->id . '.pdf';
-
-        // stream() envia o PDF para o navegador sem salvar no servidor
+        $fileName = 'SisDISE_Relatorio_' . $diagnostico->titulo . '.pdf';
         return $pdf->stream($fileName);
     }
 
-    public function gerarPGES(\App\Models\Diagnostico $diagnostico)
+    /**
+     * Rota GET /api/diagnosticos/{diagnostico}/pges
+     * Gera o Plano de Gestão Empresarial Sustentável (PGES).
+     */
+    public function gerarPGES(Diagnostico $diagnostico)
     {
-    // 1. (Opcional) Verificação de Segurança:
-    if ($diagnostico->user_id !== auth()->id()) {
-       return response()->json(['message' => 'Não autorizado'], 403);
+        $itensComNotas = $diagnostico->itens()->with('itemParametro')->get();
+        $itensParaMelhorar = $itensComNotas->filter(function ($item) {
+            return $item->nota <= 2;
+        });
+        return response()->json($itensParaMelhorar->values());
     }
 
-    // 2. A Lógica Principal do PGES
-    // Carrega todos os 39 itens (respostas) deste diagnóstico
-    // e, para cada item, carrega sua "pergunta" (itemParametro).
-    $itensComNotas = $diagnostico->itens()->with('itemParametro')->get();
-
-    // 3. Filtra apenas os itens com "nota baixa" (<= 2)
-    $itensParaMelhorar = $itensComNotas->filter(function ($item) {
-        return $item->nota <= 2;
-    });
-
-    // 4. Retorna a lista de itens a melhorar
-    return response()->json($itensParaMelhorar->values());
-    }
-
-    public function downloadPGES(\App\Models\Diagnostico $diagnostico)
+    /**
+     * Rota GET /api/diagnosticos/{diagnostico}/pges/pdf
+     * Gera e baixa o PDF do Plano de Ação (PGES).
+     */
+    public function downloadPGES(Diagnostico $diagnostico)
     {
-    // 1. (Opcional) Verificação de Segurança
-    if ($diagnostico->user_id !== auth()->id()) {
-       return response()->json(['message' => 'Não autorizado'], 403);
-    }
+        $diagnostico->load('empresa');
+        $itensComNotas = $diagnostico->itens()->with('itemParametro')->get();
+        $itensParaMelhorar = $itensComNotas->filter(function ($item) {
+            return $item->nota <= 2;
+        });
 
-    // 2. A Lógica Principal (COPIADA do método gerarPGES)
-    // Carrega todos os 39 itens (respostas) deste diagnóstico
-    // e, para cada item, carrega sua "pergunta" (itemParametro).
-    $itensComNotas = $diagnostico->itens()->with('itemParametro')->get();
+        $pdf = Pdf::loadView('pdf.pges', [
+            'diagnostico' => $diagnostico,
+            'itensParaMelhorar' => $itensParaMelhorar->values()
+        ]);
 
-    // 3. Filtra apenas os itens com "nota baixa" (<= 2)
-    $itensParaMelhorar = $itensComNotas->filter(function ($item) {
-        return $item->nota <= 2;
-    });
-
-    // 4. Gera o PDF usando o "molde" Blade que criamos
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.pges', [
-        'diagnostico' => $diagnostico,
-        'itensParaMelhorar' => $itensParaMelhorar->values()
-    ]);
-
-    // 5. Define o nome do arquivo e o envia para o navegador
-    $fileName = 'SisDISE_PlanoDeAcao_' . $diagnostico->id . '.pdf';
-
-    // stream() envia o PDF para o navegador
-    return $pdf->stream($fileName);
+        $fileName = 'SisDISE_PlanoDeAcao_' . $diagnostico->id . '.pdf';
+        return $pdf->stream($fileName);
     }
 }

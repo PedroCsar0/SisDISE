@@ -12,7 +12,7 @@
             Endereço de e-mail
           </label>
           <input
-            v-model="email"
+            v-model="form.email"
             id="email"
             name="email"
             type="email"
@@ -24,17 +24,13 @@
         <div>
           <label for="password" class="block text-sm font-medium text-gray-700"> Senha </label>
           <input
-            v-model="password"
+            v-model="form.password"
             id="password"
             name="password"
             type="password"
             required
             class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
           />
-        </div>
-
-        <div v-if="errorMessage" class="text-sm text-red-600">
-          {{ errorMessage }}
         </div>
 
         <div>
@@ -44,6 +40,10 @@
         >
           Login
         </button>
+        <div class="text-center text-sm text-gray-600 mt-4">
+          Não possui uma conta?
+          <router-link to="/register" class="text-indigo-600 hover:underline">Registre-se aqui</router-link>
+        </div>
         </div>
       </form>
     </div>
@@ -51,44 +51,41 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { reactive } from 'vue'; // ref foi atualizado para reactive
 import { useRouter } from 'vue-router';
-import api from '@/api.js'; // Nosso Axios (agora com a baseURL /api)
+import api from '@/api.js';
 import { useUserStore } from '@/stores/userStore';
+import { useToast } from "vue-toastification"; // <-- 1. IMPORTE
 
-const email = ref('teste@avaliador.com');
-const password = ref('senha123');
-const errorMessage = ref('');
+const form = reactive({ // Usar 'reactive' é mais limpo para formulários
+  email: 'teste@avaliador.com',
+  password: 'senha123',
+});
+
 const router = useRouter();
 const userStore = useUserStore();
+const toast = useToast(); // <-- 2. INICIE
+
+// errorMessage foi removido
 
 const handleLogin = async () => {
-  errorMessage.value = '';
-
   try {
-    // PASSO 1: Chama a rota /api/login
     const response = await api.post('/login', {
-      email: email.value,
-      password: password.value,
+      email: form.email,
+      password: form.password,
     });
 
     const token = response.data.token;
-
-    // PASSO 2: Salva o token no localStorage
     localStorage.setItem('authToken', token);
-
-    // PASSO 3: Informa ao Axios para USAR este token
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-    // PASSO 4: (A LINHA NOVA E IMPORTANTE) Salva os dados do usuário no "armazém"
     userStore.setUser(response.data.user);
 
-    // PASSO 5: Redireciona para o Dashboard
     router.push('/dashboard');
 
   } catch (error) {
     console.error('Erro no login:', error);
-    errorMessage.value = 'E-mail ou senha inválidos. Tente novamente.';
+    // <-- 3. USE O TOAST
+    toast.error('E-mail ou senha inválidos. Tente novamente.');
   }
 };
 </script>

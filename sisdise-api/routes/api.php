@@ -13,41 +13,52 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// Rota de Login PÚBLICA (para o Vue usar)
+// === ROTAS PÚBLICAS ===
+// (Não precisam de login)
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
 
-// --- ROTAS PROTEGIDAS ---
-// Todas as rotas aqui dentro exigem um Token de API válido
+
+// === ROTAS PROTEGIDAS (Exigem Login) ===
 Route::middleware('auth:sanctum')->group(function () {
 
-    // Grupo de rotas do Administrador
+    // --- Rotas de Admin (Exigem tipo 'Administrador') ---
     Route::prefix('admin')->middleware('can:ser-admin')->group(function () {
-        // GET /api/admin/parametros
         Route::get('/parametros', [AdminController::class, 'getParametros']);
-        // PUT /api/admin/parametros/{itemParametro}
         Route::put('/parametros/{itemParametro}', [AdminController::class, 'updateParametro']);
-        // PUT /api/admin/grupos/{grupoParametro}
         Route::put('/grupos/{grupoParametro}', [AdminController::class, 'updateGrupo']);
+        Route::get('/users', [AdminController::class, 'getUsers']);
+        Route::get('/users/{user}', [AdminController::class, 'getUserDetails']);
+        Route::put('/users/{user}', [AdminController::class, 'updateUser']);
+        Route::delete('/users/{user}', [AdminController::class, 'deleteUser']);
     });
 
-    // --- Rotas do Avaliador ---
+    // --- Rotas de Gestão (Exigem tipo 'Administrador' OU 'Avaliador') ---
+    Route::middleware('can:pode-gerir')->group(function () {
+        // CRUD de Empresas
+        Route::apiResource('empresas', EmpresaController::class);
 
-    // CRUD de Empresas
-    // (GET, POST, PUT, DELETE para /api/empresas)
-    Route::apiResource('empresas', EmpresaController::class);
-    Route::get('/questionario', [DiagnosticoController::class, 'getQuestionario']);
-    Route::post('/diagnosticos', [DiagnosticoController::class, 'store']);
+        // Gestão de Diagnósticos
+        Route::get('/questionario', [DiagnosticoController::class, 'getQuestionario']);
+        Route::post('/diagnosticos', [DiagnosticoController::class, 'store']);
 
-    // Rotas de Diagnóstico
-    Route::get('/questionario', [DiagnosticoController::class, 'getQuestionario']);
-    Route::post('/diagnosticos', [DiagnosticoController::class, 'store']);
+        // Gestão de Vínculos
+        Route::get('/gestores-disponiveis', [EmpresaController::class, 'getGestoresDisponiveis']);
+        Route::post('/empresas/{empresa}/vincular-gestor', [EmpresaController::class, 'vincularGestor']);
+    });
+
+    // --- Rotas Comuns (Todos os tipos, incluindo 'Gestor Empresarial') ---
+
+    // Ver Relatórios
     Route::get('/diagnosticos/{diagnostico}', [DiagnosticoController::class, 'show']);
-    Route::get('/diagnosticos', [DiagnosticoController::class, 'index']);
+    Route::get('/diagnosticos', [DiagnosticoController::class, 'index']); // O Controller já filtra por tipo
+
+    // Downloads
     Route::get('/relatorio/{diagnostico}/pdf', [DiagnosticoController::class, 'downloadPDF']);
     Route::get('/diagnosticos/{diagnostico}/pges', [DiagnosticoController::class, 'gerarPGES']);
     Route::get('/diagnosticos/{diagnostico}/pges/pdf', [DiagnosticoController::class, 'downloadPGES']);
 
-    // Rota padrão para buscar o usuário logado
+    // Buscar o próprio utilizador
     Route::get('/user', function (Request $request) {
         return $request->user();
     });

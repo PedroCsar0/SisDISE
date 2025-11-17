@@ -18,6 +18,7 @@ class Diagnostico extends Model
     protected $fillable = [
         'user_id',
         'empresa_id',
+        'titulo',
         'dataAnalise',
         'escoreFinal',
         'classificacao',

@@ -4,19 +4,29 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Empresa;
+use App\Models\User; // <-- 1. ESTA LINHA ESTAVA EM FALTA
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate; // Usaremos para segurança
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests; // <-- 2. ESTA LINHA ESTAVA EM FALTA
 
 class EmpresaController extends Controller
 {
+    use AuthorizesRequests; // <-- 3. ESTA LINHA ESTAVA EM FALTA
+
     /**
      * GET /api/empresas
      * Lista todas as empresas.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Retorna todas as empresas, ordenadas por nome
-        return Empresa::orderBy('razaoSocial')->get();
+        // Pega apenas as empresas do usuário logado (Avaliador) ou todas (Admin)
+        $query = Empresa::orderBy('razaoSocial');
+
+        if ($request->user()->tipo === 'Avaliador') {
+            $query->where('user_id', $request->user()->id);
+        }
+
+        // Adiciona o ->with('gestores') para carregar os usuários vinculados
+        return $query->with('gestores')->get();
     }
 
     /**
@@ -25,70 +35,103 @@ class EmpresaController extends Controller
      */
     public function store(Request $request)
     {
-        // Valida os dados recebidos do frontend
         $dadosValidados = $request->validate([
             'razaoSocial' => 'required|string|max:255',
-            'cnpj' => 'required|string|max:20|unique:empresas', // Garante CNPJ único
+            'cnpj' => 'required|string|max:20|unique:empresas',
             'setor' => 'nullable|string|max:100',
             'cidade' => 'nullable|string|max:100',
             'estado' => 'nullable|string|max:2',
         ]);
 
-        // Cria a nova empresa no banco
+        // Esta linha agora vai funcionar
+        $this->authorize('create', Empresa::class);
+
+        $dadosValidados['user_id'] = auth()->id();
+
         $empresa = Empresa::create($dadosValidados);
 
-        // Retorna a empresa recém-criada e um status 201 (Created)
         return response()->json($empresa, 201);
     }
 
     /**
      * GET /api/empresas/{empresa}
-     * Exibe uma empresa específica.
      */
     public function show(Empresa $empresa)
     {
-        // O "Route Model Binding" já encontrou a empresa pelo ID
         return $empresa;
     }
 
     /**
      * PUT /api/empresas/{empresa}
-     * Atualiza uma empresa existente.
      */
     public function update(Request $request, Empresa $empresa)
     {
         $dadosValidados = $request->validate([
             'razaoSocial' => 'required|string|max:255',
-            'cnpj' => 'required|string|max:20|unique:empresas,cnpj,' . $empresa->id, // Permite o CNPJ atual
+            'cnpj' => 'required|string|max:20|unique:empresas,cnpj,' . $empresa->id,
             'setor' => 'nullable|string|max:100',
             'cidade' => 'nullable|string|max:100',
             'estado' => 'nullable|string|max:2',
         ]);
 
-        // Atualiza os dados da empresa
-        $empresa->update($dadosValidados);
+        $this->authorize('update', $empresa);
 
-        // Retorna a empresa atualizada
+        $empresa->update($dadosValidados);
         return response()->json($empresa);
     }
 
     /**
      * DELETE /api/empresas/{empresa}
-     * Exclui uma empresa.
      */
     public function destroy(Empresa $empresa)
     {
-        // NOTA: Precisamos verificar se a empresa tem diagnósticos
+        $this->authorize('delete', $empresa);
+
         if ($empresa->diagnosticos()->count() > 0) {
             return response()->json([
                 'message' => 'Não é possível excluir: Esta empresa já possui diagnósticos vinculados.'
             ], 409); // 409 Conflict
         }
 
-        // Se não tiver, exclui a empresa
         $empresa->delete();
+        return response()->noContent();
+    }
 
-        // Retorna uma resposta vazia (No Content)
-        return response()->noContent(); // 204
+    /**
+     * GET /api/gestores-disponiveis
+     * Lista Gestores que não estão vinculados a nenhuma empresa.
+     */
+    public function getGestoresDisponiveis()
+    {
+        return User::where('tipo', 'Gestor Empresarial')
+                    ->whereNull('empresa_id')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'email']);
+    }
+
+    /**
+     * POST /api/empresas/{empresa}/vincular-gestor
+     * Vincula um Gestor disponível a uma Empresa.
+     */
+    public function vincularGestor(Request $request, Empresa $empresa)
+    {
+        $this->authorize('update', $empresa);
+
+        $dadosValidados = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+        ]);
+
+        $gestor = User::find($dadosValidados['user_id']);
+
+        if ($gestor->tipo !== 'Gestor Empresarial' || $gestor->empresa_id !== null) {
+            return response()->json([
+                'message' => 'Este usuário não é um Gestor ou já está vinculado a outra empresa.'
+            ], 409); // 409 Conflict
+        }
+
+        $gestor->empresa_id = $empresa->id;
+        $gestor->save();
+
+        return response()->json($gestor, 200);
     }
 }
