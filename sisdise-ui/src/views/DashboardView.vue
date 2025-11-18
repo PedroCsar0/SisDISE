@@ -45,9 +45,14 @@
           >
             <router-link
               to="/diagnostico/novo"
-              class="bg-yellow-400 p-8 rounded-lg text-center text-gray-900 font-bold text-xl hover:bg-yellow-500 transition-colors"
+              class="p-8 rounded-lg text-center font-bold text-xl transition-colors"
+              :class="[
+                hasDraft
+                  ? 'bg-primary text-white hover:bg-primary-dark'
+                  : 'bg-yellow-400 text-gray-900 hover:bg-yellow-500'
+              ]"
             >
-              + Novo Diagnóstico
+              {{ hasDraft ? 'Continuar Diagnóstico' : '+ Novo Diagnóstico' }}
             </router-link>
 
             <router-link
@@ -77,7 +82,6 @@
             <p class="text-gray-500">Faça seu primeiro diagnóstico para ver a evolução.</p>
           </div>
         </div>
-
         <div class="md:col-span-3 bg-white p-6 rounded-lg shadow-md">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">
             Registro de Relatórios
@@ -104,8 +108,7 @@
           </p>
         </div>
 
-      </div>
-    </div>
+      </div> </div>
   </div>
 </template>
 
@@ -120,18 +123,31 @@ import LineChart from '@/components/LineChart.vue';
 const diagnosticos = ref([]);
 const isLoading = ref(true);
 const router = useRouter();
-const userStore = useUserStore(); // <-- USA O STORE
+const userStore = useUserStore();
+const hasDraft = ref(false);
 
-// --- 2. BUSCAR DADOS (onMounted limpo e CORRIGIDO) ---
+// --- 2. BUSCAR DADOS (CORRIGIDO PARA RASCUNHO POR USUÁRIO) ---
 onMounted(async () => {
   isLoading.value = true;
+
   try {
-    // Garante que o usuário esteja carregado (sem .value)
+    // 1. Garante que temos o utilizador
     if (!userStore.user) {
       await userStore.fetchUser();
     }
 
-    // Busca apenas os diagnósticos
+    // 2. Verifica o rascunho ESPECÍFICO deste utilizador
+    if (userStore.user && userStore.user.id) {
+      const draftKey = `sisdise_draft_user_${userStore.user.id}`;
+      const savedDraft = localStorage.getItem(draftKey);
+      if (savedDraft) {
+        hasDraft.value = true;
+      } else {
+        hasDraft.value = false;
+      }
+    }
+
+    // 3. Busca os diagnósticos
     const diagnosticosResponse = await api.get('/diagnosticos');
     diagnosticos.value = diagnosticosResponse.data;
 
@@ -202,11 +218,12 @@ const goToRelatorio = (id) => {
 
 // --- 7. FUNÇÕES AUXILIARES ---
 const formatarData = (dataISO) => {
-  const data = new Date(dataISO);
-  return data.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  if (!dataISO) return '';
+  const dataApenas = dataISO.split('T')[0];
+  const partes = dataApenas.split('-');
+  if (partes.length !== 3) {
+    return dataISO;
+  }
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
 };
 </script>

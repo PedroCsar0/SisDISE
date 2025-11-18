@@ -1,250 +1,273 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>SisDISE: {{ $diagnostico->titulo }}</title>
+    <title>Relatório SisDISE: {{ $diagnostico->titulo }}</title>
     <style>
-        /* Define a fonte padrão e o @page para margens */
-        @page {
-            margin: 2.5cm 1.5cm 2.5cm 1.5cm;
-        }
-        body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
-            line-height: 1.4;
-            color: #333;
-            font-size: 11pt;
-        }
-
-        /* --- Estrutura --- */
+        /* --- Configuração Global --- */
+        @page { margin: 2.5cm 1.5cm 2.5cm 1.5cm; }
+        body { font-family: 'DejaVu Sans', 'Helvetica', 'Arial', sans-serif; line-height: 1.5; color: #333; font-size: 11pt; }
         .container { width: 100%; margin: 0 auto; }
         .page-break { page-break-after: always; }
 
+        /* --- Cabeçalho e Rodapé --- */
+        header { position: fixed; top: -2cm; left: 0px; right: 0px; height: 50px; text-align: right; font-size: 9pt; color: #777; border-bottom: 1px solid #ddd; }
+        footer { position: fixed; bottom: -2cm; left: 0px; right: 0px; height: 50px; font-size: 9pt; color: #777; border-top: 1px solid #ddd; }
+        footer .page-number:after { content: counter(page); }
+
+        /* --- Tipografia --- */
+        h1 { font-size: 24px; color: #111; margin-bottom: 20px; border-bottom: 2px solid #36a2eb; padding-bottom: 5px; }
+        h2 { font-size: 18px; color: #333; margin-top: 30px; border-bottom: 1px solid #eee; padding-bottom: 3px; }
+        p { margin-bottom: 15px; text-align: justify; }
+        ul, ol { padding-left: 25px; margin-bottom: 15px; }
+
         /* --- Capa --- */
-        .cover-page {
-            text-align: center;
-            margin-top: 200px;
-        }
-        .cover-title {
-            font-size: 28px;
-            font-weight: bold;
-            color: #2d3748;
-            margin: 0;
-        }
-        .cover-subtitle {
-            font-size: 20px;
-            color: #4a5568;
-            margin-top: 10px;
-        }
-        .cover-info {
-            margin-top: 150px;
-            font-size: 14px;
-        }
+        .cover-page { text-align: center; margin-top: 150px; page-break-after: always; } /* Adiciona quebra após a capa */
+        .cover-title { font-size: 28px; font-weight: bold; color: #1f2937; margin: 0; border: none; }
+        .cover-subtitle { font-size: 20px; color: #4b5563; margin-top: 10px; }
+        .cover-info { margin-top: 150px; font-size: 14px; color: #374151; }
 
-        /* --- Cabeçalho e Rodapé (em todas as páginas, exceto capa) --- */
-        header {
-            position: fixed;
-            top: -2cm; /* Puxa para a margem superior */
-            left: 0px;
-            right: 0px;
-            height: 50px;
-            text-align: right;
-            font-size: 9pt;
-            color: #888;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        footer {
-            position: fixed;
-            bottom: -2cm; /* Puxa para a margem inferior */
-            left: 0px;
-            right: 0px;
-            height: 50px;
-            font-size: 9pt;
-            color: #888;
-            border-top: 1px solid #e2e8f0;
-        }
-        footer .page-number:after {
-            content: counter(page); /* Contador de página automático */
-        }
-
-        /* --- Conteúdo --- */
-        h1 {
-            font-size: 22px;
-            color: #2d3748;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 5px;
-        }
-        h2 {
-            font-size: 18px;
-            color: #4a5568;
-            margin-top: 30px;
-        }
-        p {
-            margin-bottom: 15px;
-        }
-        .card {
-            background-color: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        /* Tabela de Performance (Gráfico de Barras) */
-        .performance-table { width: 100%; border-collapse: collapse; }
-        .performance-table th, .performance-table td {
-            padding: 10px;
-            border-bottom: 1px solid #e2e8f0;
-            text-align: left;
-        }
-        .performance-table th { background-color: #f7fafc; }
-        .progress-bar { background-color: #e2e8f0; border-radius: 5px; height: 18px; width: 100%; }
-        .progress { height: 18px; border-radius: 5px; }
-        .color-sdt { background-color: #48bb78; } /* Verde */
-        .color-sma { background-color: #4299e1; } /* Azul */
-        .color-sac { background-color: #f56565; } /* Vermelho */
-
-        /* Score Final (Gauge) */
+        /* --- Componentes --- */
+        .card { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 25px; margin-bottom: 25px; }
         .score-final-card { text-align: center; }
-        .score-final { font-size: 48px; font-weight: bold; color: #2d3748; margin: 10px 0; }
-        .classificacao { font-size: 24px; font-weight: bold; color: #c0a05e; } /* Amarelo/Ouro */
+        .score-final { font-size: 64px; font-weight: bold; color: #111827; margin: 10px 0; }
+        .classificacao { font-size: 24px; font-weight: bold; }
+
+        /* Cores Intuitivas */
+        .text-baixa { color: #dc2626; }
+        .text-moderada { color: #f59e0b; }
+        .text-alta { color: #16a34a; }
+        .bg-baixa { background-color: #dc2626; }
+        .bg-moderada { background-color: #f59e0b; }
+        .bg-alta { background-color: #16a34a; }
+
+        /* --- Tabelas --- */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+        th { background-color: #f9fafb; font-size: 10pt; color: #6b7280; text-transform: uppercase; }
+        td { font-size: 11pt; }
+        .text-right { text-align: right; }
+
+        /* Cores dos 3 Pilares */
+        .color-sdt { color: #166534; } .color-sma { color: #1d4ed8; } .color-sac { color: #b91c1c; }
+
+        /* --- (REGRAS CORRIGIDAS) CONTROLO DE QUEBRA DE PÁGINA --- */
+        .section-block {
+            page-break-inside: avoid; /* Esta é a regra principal */
+        }
+        table, tr, .card {
+            page-break-inside: avoid;
+        }
+        /* Removemos 'page-break-after' dos h1, h2, h3 pois é inseguro */
+        p, li, ul, ol {
+            widows: 3; /* Mínimo 3 linhas de um parágrafo no final da página */
+            orphans: 3; /* Mínimo 3 linhas de um parágrafo no início da página */
+        }
+        /* --- FIM DAS REGRAS CORRIGIDAS --- */
 
     </style>
 </head>
 <body>
 
+    @php
+        // Definição de Variáveis PHP (Metadados)
+        $metadadosPrincipio = [
+            'Direitos humanos e trabalho' => ['max' => 300, 'cor' => 'color-sdt'],
+            'Meio ambiente' => ['max' => 500, 'cor' => 'color-sma'],
+            'Anticorrupção' => ['max' => 200, 'cor' => 'color-sac'],
+        ];
+
+        $metadadosParametro = [
+            'Proteção dos direitos humanos e trabalho' => ['codigo' => 'Sdt1', 'nmax' => 70],
+            'Abusos aos direitos humanos' => ['codigo' => 'Sdt2', 'nmax' => 30],
+            'Ações preventivas aos desafios ambientais' => ['codigo' => 'Sma1', 'nmax' => 20],
+            'Iniciativas de responsabilidade ambiental' => ['codigo' => 'Sma2', 'nmax' => 25],
+            'Estímulo ao desenvolvimento e a difusão de tecnologias ecologicamente corretas' => ['codigo' => 'Sma3', 'nmax' => 30],
+            'Ações de combate a corrupção' => ['codigo' => 'Sac1', 'nmax' => 20],
+        ];
+
+        $score = round($diagnostico->escoreFinal);
+        $percentual = $score / 10;
+        $corClass = 'text-baixa'; $corBgClass = 'bg-baixa';
+        if ($score > 750) { $corClass = 'text-alta'; $corBgClass = 'bg-alta'; }
+        elseif ($score > 500) { $corClass = 'text-moderada'; $corBgClass = 'bg-moderada'; }
+    @endphp
+
     <div class="cover-page">
         <h1 class="cover-title">{{ $diagnostico->titulo }}</h1>
-        <h2 class="cover-subtitle">Metodologia SisDISE</h2>
+        <h2 class="cover-subtitle">Relatório de Diagnóstico de Sustentabilidade (ESG)</h2>
 
         <div class="cover-info">
             <p><strong>Empresa Avaliada:</strong> {{ $diagnostico->empresa ? $diagnostico->empresa->razaoSocial : '[Empresa não disponível]' }}</p>
             <p><strong>Data do Diagnóstico:</strong> {{ \Carbon\Carbon::parse($diagnostico->dataAnalise)->format('d/m/Y') }}</p>
-            <p><strong>ID do Relatório:</strong> #{{ $diagnostico->id }}</p>
+            <p><strong>Metodologia:</strong> SisDISE (Baseado no Pacto Global da ONU)</p>
         </div>
     </div>
-
-    <div class="page-break"></div>
-
     <header>
-        SisDISE - Relatório de Diagnóstico | {{ $diagnostico->empresa ? $diagnostico->empresa->razaoSocial : '' }}
+        Relatório SisDISE: {{ $diagnostico->titulo }} | {{ $diagnostico->empresa ? $diagnostico->empresa->razaoSocial : '' }}
     </header>
-
     <footer>
-        <span class="page-number">Página </span>
+        Relatório confidencial gerado pelo SisDISE em {{ \Carbon\Carbon::now()->format('d/m/Y') }}.
+        <span class="page-number" style="float: right;">Página </span>
     </footer>
 
     <div class="container">
-        <h1>1. Introdução</h1>
-        <p>
-            Este documento apresenta o resultado do Diagnóstico de Sustentabilidade Empresarial (SisDISE) realizado na data de {{ \Carbon\Carbon::parse($diagnostico->dataAnalise)->format('d/m/Y') }}.
-            O objetivo deste relatório é fornecer uma avaliação quantitativa do alinhamento da empresa com as práticas de <strong>ESG (Environmental, Social and Governance)</strong>.
-        </p>
-        <p>
-            A avaliação serve como o primeiro passo para a elaboração de um Plano de Gestão Empresarial Sustentável (PGES), identificando pontos fortes e áreas que necessitam de melhoria imediata.
-        </p>
 
-        <h2>Metodologia Aplicada</h2>
-        <p>
-            A análise foi conduzida utilizando o **SisDISE (Sistema de Diagnóstico da Sustentabilidade Empresarial)**, uma metodologia desenvolvida por Fernandes (2023).
-            [cite_start]Esta metodologia é fundamentada nos **10 Princípios do Pacto Global das Nações Unidas** e avalia a empresa em três pilares centrais [cite: 284-285]:
-        </p>
-        <ul style="list-style-type: disc; padding-left: 20px;">
-            <li><strong>Direitos Humanos e Trabalho (Sdt):</strong> Avalia o cumprimento das leis trabalhistas, a promoção de um ambiente de trabalho seguro e a responsabilidade social com a comunidade.</li>
-            <li><strong>Meio Ambiente (Sma):</strong> Avalia as ações preventivas, iniciativas de responsabilidade ambiental e o uso de tecnologias ecologicamente corretas.</li>
-            <li><strong>Anticorrupção (Sac):</strong> Avalia a existência de políticas ativas de combate à corrupção, suborno e extorsão.</li>
-        </ul>
-        <p>
-            Um total de 39 parâmetros foram avaliados e pontuados (com notas de 0 a 5), resultando nos escores apresentados na secção seguinte.
-        </p>
+        <div class="section-block">
+            <h1>1. Sumário Executivo</h1>
+
+            <div class="card score-final-card">
+                <h2 style="margin-top: 0;">Escore Final de Sustentabilidade (Sf)</h2>
+                <div class="score {{ $corClass }}">{{ $score }} <span style="font-size: 24px; color: #6b7280;">/ 1000</span></div>
+
+                <div style="width: 100%; background-color: #e5e7eb; border-radius: 8px; height: 20px;">
+                    <div class="{{ $corBgClass }}" style="height: 20px; width: {{ $percentual }}%; border-radius: 8px;"></div>
+                </div>
+
+                <p class="classificacao {{ $corClass }}" style="margin-top: 15px;">
+                    Classificação: {{ $diagnostico->classificacao }}
+                </p>
+            </div>
+
+            <p>
+                Com base na metodologia SisDISE, o diagnóstico da empresa resultou num Escore Final de <strong>{{ $score }}</strong> (de 1.000 pontos possíveis),
+                situando a organização na categoria de <strong>"{{ $diagnostico->classificacao }}"</strong>.
+            </p>
+            <p>
+                Este relatório detalha a pontuação obtida em cada um dos três pilares fundamentais de ESG e, subsequentemente, decompõe o cálculo
+                nos seis parâmetros técnicos de sustentabilidade que formam o escore.
+            </p>
+        </div>
+
+        <div class="section-block">
+            <h1>2. Metodologia</h1>
+            <p>
+                A análise foi conduzida utilizando o SisDISE (Sistema de Diagnóstico da Sustentabilidade Empresarial), fundamentado nos <strong>10 Princípios do Pacto Global das Nações Unidas</strong>.
+                A pontuação é calculada com base em 39 itens de avaliação, distribuídos em três pilares centrais:
+            </p>
+            <ul style="list-style-type: disc; padding-left: 20px;">
+                <li><strong>Direitos Humanos e Trabalho (Sdt):</strong> Avalia o cumprimento das leis trabalhistas, a promoção de um ambiente de trabalho seguro e a responsabilidade social.</li>
+                <li><strong>Meio Ambiente (Sma):</strong> Avalia as ações preventivas, iniciativas de responsabilidade ambiental e o uso de tecnologias ecologicamente corretas.</li>
+                <li><strong>Anticorrupção (Sac):</strong> Avalia a existência de políticas ativas de combate à corrupção, suborno e extorsão.</li>
+            </ul>
+        </div>
 
         <div class="page-break"></div>
 
-        <h1>2. Resultados do Diagnóstico</h1>
-
-        <h2>Escore Final e Classificação</h2>
-        <div class="card score-final-card">
-            <p style="font-size: 14px; color: #718096; margin: 0;">O escore final (Sf) varia de 0 a 1.000 pontos.</p>
-            <div class="score">{{ round($diagnostico->escoreFinal) }}</div>
-            <p style="font-size: 16px; margin-top: 0; margin-bottom: 10px;">Classificação (Tabela 6):</p>
-            <div class="classificacao">{{ $diagnostico->classificacao }}</div>
-        </div>
-
-        <h2>Performance por Princípio (Tabela 7)</h2>
-        <div class="card">
-            @php
-                $metadados = [
-                    'Direitos humanos e trabalho' => ['max' => 300, 'cor' => 'color-sdt'],
-                    'Meio ambiente' => ['max' => 500, 'cor' => 'color-sma'],
-                    'Anticorrupção' => ['max' => 200, 'cor' => 'color-sac'],
-                ];
-            @endphp
+        <div class="section-block">
+            <h1>3. Análise por Pilar de Sustentabilidade</h1>
+            <p>A pontuação total é dividida nos três pilares centrais. A tabela a seguir apresenta o desempenho consolidado em cada pilar, indicando o escore obtido versus o máximo possível (conforme Tabela 7 do Manual Técnico).</p>
 
             <table class="performance-table">
-                @foreach($diagnostico->principios as $principio)
-                    @php
-                        $meta = $metadados[$principio->nomePrincipio] ?? ['max' => 1, 'cor' => ''];
-                        $percentual = ($principio->escoreObtido / $meta['max']) * 100;
-                    @endphp
+                <thead>
                     <tr>
-                        <td style="width: 30%;">
-                            <strong style="color: {{ $meta['cor'] == 'color-sdt' ? '#2f855a' : ($meta['cor'] == 'color-sma' ? '#2b6cb0' : '#c53030') }};">
-                                {{ $principio->nomePrincipio }}
-                            </strong>
-                        </td>
-                        <td style="width: 50%;">
-                            <div class="progress-bar">
-                                <div class="progress {{ $meta['cor'] }}" style="width: {{ $percentual }}%;"></div>
-                            </div>
-                        </td>
-                        <td style="width: 20%; text-align: right;">
-                            <strong>{{ round($principio->escoreObtido) }} / {{ $meta['max'] }}</strong>
-                            ({{ round($percentual) }}%)
-                        </td>
+                        <th>Pilar de Sustentabilidade</th>
+                        <th class="text-right">Escore Obtido</th>
+                        <th class="text-right">Escore Máximo</th>
+                        <th class="text-right">Percentual</th>
                     </tr>
-                @endforeach
+                </thead>
+                <tbody>
+                    @foreach($diagnostico->principios as $principio)
+                        @php
+                            $meta = $metadadosPrincipio[$principio->nomePrincipio] ?? ['max' => 1, 'cor' => ''];
+                            $percentualPilar = ($principio->escoreObtido / $meta['max']) * 100;
+                        @endphp
+                        <tr>
+                            <td><strong class="{{ $meta['cor'] }}">{{ $principio->nomePrincipio }}</strong></td>
+                            <td class="text-right">{{ round($principio->escoreObtido) }}</td>
+                            <td class="text-right">{{ $meta['max'] }}</td>
+                            <td class="text-right">{{ round($percentualPilar) }}%</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+
+            <h2 style="margin-top: 40px;">Interpretação dos Pilares</h2>
+            @foreach($diagnostico->principios as $principio)
+                @php
+                    $meta = $metadadosPrincipio[$principio->nomePrincipio];
+                    $percentualPilar = ($principio->escoreObtido / $meta['max']) * 100;
+                @endphp
+                <div class="section-block"> <h3>{{ $principio->nomePrincipio }} ({{ round($percentualPilar) }}%)</h3>
+                    <p>
+                        @if($percentualPilar < 50)
+                            O desempenho neste pilar é <strong>crítico</strong>. A pontuação de {{ round($principio->escoreObtido) }} (de {{ $meta['max'] }}) indica lacunas significativas nas práticas de sustentabilidade. Recomenda-se uma revisão imediata dos parâmetros detalhados na secção seguinte.
+                        @elseif($percentualPilar < 75)
+                            O desempenho neste pilar é <strong>moderado</strong>. A pontuação de {{ round($principio->escoreObtido) }} (de {{ $meta['max'] }}) demonstra que existem políticas em vigor, mas que há oportunidades claras de melhoria para otimizar o alinhamento com as práticas de ESG.
+                        @else
+                            O desempenho neste pilar é <strong>forte</strong>. A pontuação de {{ round($principio->escoreObtido) }} (de {{ $meta['max'] }}) indica um bom alinhamento com os princípios do Pacto Global, servindo como uma base sólida para a melhoria contínua.
+                        @endif
+                    </p>
+                </div>
+            @endforeach
+        </div>
+
+        <div class="page-break"></div>
+
+        <div class="section-block">
+            <h1>4. Análise Técnica por Parâmetro</h1>
+            <p>Cada pilar é composto por parâmetros técnicos. A tabela a seguir (baseada na Tabela 4 do Manual Técnico) detalha o cálculo (Equação 01) e a contribuição de cada um dos seis parâmetros para o Escore Final.</p>
+
+            <table class="detailed-table">
+                <thead>
+                    <tr>
+                        <th>Parâmetro de Sustentabilidade (e Código)</th>
+                        <th>Pontos (Σni / Nmax)</th>
+                        <th>Peso (pi)</th>
+                        <th class="text-right">Escore Ponderado (si)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($diagnostico->principios->flatMap->parametroAvaliacaos as $param)
+                        @php
+                            $meta = $metadadosParametro[$param->descricao] ?? ['codigo' => 'N/A', 'nmax' => 0];
+                        @endphp
+                        <tr>
+                            <td>
+                                <strong>{{ $meta['codigo'] }}</strong>: {{ $param->descricao }}
+                            </td>
+                            <td>{{ $param->nota }} / {{ $meta['nmax'] }}</td>
+                            <td>{{ number_format($param->peso, 1) }}</td>
+                            <td class="text-right"><strong>{{ round($param->escore_obtido) }}</strong></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+                <tfoot>
+                    <tr style="background-color: #f9fafb; font-weight: bold; border-top: 2px solid #ddd;">
+                        <td colspan="3" class="text-right">SCORE FINAL (Σsi)</td>
+                        <td class="text-right">{{ round($diagnostico->escoreFinal) }}</td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
 
         <div class="page-break"></div>
 
-        <h1>3. Análise e Próximos Passos</h1>
+        <div class="section-block">
+            <h1>5. Conclusão e Próximos Passos</h1>
 
-        <h2>Análise dos Resultados</h2>
-        <p>
-            Com um escore final de <strong>{{ round($diagnostico->escoreFinal) }}</strong>, a empresa enquadra-se na classificação de <strong>"{{ $diagnostico->classificacao }}"</strong>.
-            Isto indica que a empresa já possui práticas de sustentabilidade implementadas, mas ainda existem lacunas significativas para atingir um patamar "Sustentável" (acima de 751 pontos).
-        </p>
-        <p>A análise detalhada por princípio revela que:</p>
-        <ul style="list-style-type: disc; padding-left: 20px;">
-            @foreach($diagnostico->principios as $principio)
-                @php
-                    $meta = $metadados[$principio->nomePrincipio];
-                    $percentual = ($principio->escoreObtido / $meta['max']) * 100;
-                @endphp
-                <li>
-                    <strong>{{ $principio->nomePrincipio }}:</strong>
-                    Atingiu {{ round($percentual) }}% do escore máximo ({{ round($principio->escoreObtido) }} de {{ $meta['max'] }}).
-                    @if($percentual < 50)
-                        Esta é uma área <strong>crítica</strong> que exige atenção imediata.
-                    @elseif($percentual < 75)
-                        Esta é uma área com <strong>oportunidades claras de melhoria</strong>.
-                    @else
-                        Esta é uma área de <strong>bom desempenho</strong>.
-                    @endif
-                </li>
-            @endforeach
-        </ul>
+            <h2>Conclusão</h2>
+            <p>
+                Com um escore final de <strong>{{ round($diagnostico->escoreFinal) }}</strong>, a empresa enquadra-se na classificação de <strong>"{{ $diagnostico->classificacao }}"</strong>.
+                Isto indica que a organização já iniciou a sua jornada de sustentabilidade, mas que existem lacunas significativas a serem tratadas para atingir um patamar "Sustentável" (acima de 751 pontos).
+            </p>
+            <p>
+                A análise detalhada indica que, embora existam pontos fortes (visíveis nos parâmetros com maior pontuação), existem também oportunidades críticas de melhoria. A implementação de ações corretivas, especialmente nos parâmetros com baixa pontuação, é essencial para mitigar riscos, melhorar a reputação corporativa e avançar na jornada de sustentabilidade.
+            </p>
 
-        <h2>Próximos Passos Recomendados</h2>
-        <p>
-            O diagnóstico (Etapa 1) está completo. Conforme a metodologia PGES (Plano de Gestão Empresarial Sustentável), os próximos passos são:
-        </p>
-        <ol style="padding-left: 20px;">
-            [cite_start]<li><strong>Etapa 2 (Definição de Ações):</strong> Utilizar a funcionalidade "Gerar Plano de Ação (PGES)" no sistema para identificar todos os parâmetros de avaliação com notas baixas (0, 1 ou 2) [cite: 281-282].</li>
-            [cite_start]<li><strong>Etapa 3 (Plano de Trabalho):</strong> Elaborar um plano de trabalho formal, com metas de curto, médio e longo prazo, para implementar as ações definidas na Etapa 2[cite: 283].</li>
-        </ol>
-        <p>A implementação destas ações é fundamental para melhorar o alinhamento da empresa com os princípios de ESG e avançar na sua jornada de sustentabilidade.</p>
+            <h2>Próximos Passos Recomendados</h2>
+            <p>
+                O diagnóstico (Etapa 1) está completo. Conforme a metodologia PGES (Plano de Gestão Empresarial Sustentável), os próximos passos são:
+            </p>
+            <ol style="list-style-type: decimal; padding-left: 20px;">
+                <li><strong>Etapa 2 (Definição de Ações):</strong> Utilizar o documento "Plano de Ação (PGES)" gerado pelo sistema SisDISE para identificar e analisar todos os parâmetros de avaliação com notas baixas (0, 1 ou 2).</li>
+                <li><strong>Etapa 3 (Plano de Trabalho):</strong> Com base nos itens críticos identificados, elaborar um plano de trabalho formal, com metas de curto, médio e longo prazo, para implementar as ações de melhoria.</li>
+            </ol>
+            <p>
+                Recomenda-se a realização de um novo diagnóstico após a implementação do plano de trabalho (Etapa 3) para monitorizar o progresso e o impacto das ações de melhoria no Escore Final de Sustentabilidade.
+            </p>
+        </div>
     </div>
 
 </body>

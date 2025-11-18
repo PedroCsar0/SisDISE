@@ -29,45 +29,51 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        <div class="bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
-          <h2 class="text-xl font-semibold text-gray-800">Score Final (Sf)</h2>
+        <div class="bg-white p-6 rounded-lg shadow-md flex flex-col justify-between">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-800 text-center">Score Final</h2>
 
-          <div class="relative w-48 h-48 my-4">
-            <svg class="w-full h-full" viewBox="0 0 36 36">
-              <path class="text-gray-200"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none" stroke-width="3" stroke-dasharray="75, 25" stroke-linecap="round" />
-              <path class="text-yellow-500"
-                :stroke-dasharray="`${(diagnostico.escoreFinal / 1000) * 75}, 100`"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none" stroke-width="3" stroke-linecap="round" />
-            </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center">
-              <span class="text-3xl font-bold text-gray-900">{{ diagnostico.escoreFinal.toFixed(0) }}</span>
-              <span class="text-sm text-gray-500">/ 1000</span>
+            <div class="my-6 text-center">
+              <span
+                :class="scoreColorClasses.text"
+                class="text-6xl font-bold"
+              >
+                {{ diagnostico.escoreFinal.toFixed(0) }}
+              </span>
+              <span class="text-3xl text-gray-500">/ 1000</span>
             </div>
+
+            <div class="w-full bg-gray-200 rounded-full h-4">
+              <div
+                :class="scoreColorClasses.bg"
+                class="h-4 rounded-full transition-all duration-500"
+                :style="{ width: scorePercent + '%' }"
+              ></div>
+            </div>
+
+            <p
+              :class="scoreColorClasses.text"
+              class="text-xl font-semibold text-center mt-4"
+            >
+              {{ diagnostico.classificacao }}
+            </p>
           </div>
 
-          <p class="text-lg font-medium text-yellow-600">
-            {{ diagnostico.classificacao }}
-          </p>
-
-          <div class="flex flex-wrap gap-4 mt-4">
+          <div class="flex flex-wrap gap-4 mt-8 pt-6 border-t">
             <button
               @click="showModal = true"
-              class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
+              class="flex-1 px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
             >
-              Visão Detalhada (Sdt1, Sma1...)
+              Visão Detalhada
             </button>
             <button
               @click="goToPGES"
-              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              class="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
             >
-              Gerar Plano de Ação (PGES)
+              Gerar Plano de Ação
             </button>
           </div>
         </div>
-
         <div class="bg-white p-6 rounded-lg shadow-md">
           <h2 class="text-xl font-semibold text-gray-800 mb-6">Performance por Princípio</h2>
           <p class="text-sm text-gray-600 mb-4">
@@ -108,25 +114,49 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/api.js';
 import { useUserStore } from '@/stores/userStore';
-import { useToast } from "vue-toastification"; // <-- 1. Importar o Toast
-import DetalhesRelatorioModal from '@/components/DetalhesRelatorioModal.vue'; // <-- 2. Importar o Modal
+import { useToast } from "vue-toastification";
+import DetalhesRelatorioModal from '@/components/DetalhesRelatorioModal.vue';
 
 const props = defineProps({ id: { type: String, required: true } });
 const router = useRouter();
 const userStore = useUserStore();
-const toast = useToast(); // <-- 3. Iniciar o Toast
+const toast = useToast();
 
 const isLoading = ref(true);
 const diagnostico = ref(null);
 const isDownloading = ref(false);
-const showModal = ref(false); // <-- 4. Controlar o estado do Modal
+const showModal = ref(false);
 
-// ... (principioMetadados, formatarData - sem alterações) ...
 const principioMetadados = {
   'Direitos humanos e trabalho': { cor: 'bg-green-500', maxScore: 300 },
   'Meio ambiente': { cor: 'bg-blue-500', maxScore: 500 },
   'Anticorrupção': { cor: 'bg-red-500', maxScore: 200 },
 };
+
+// --- (NOVO) Lógica de Cores e Percentagem ---
+
+// 1. Calcula a percentagem da "barrinha"
+const scorePercent = computed(() => {
+  if (!diagnostico.value) return 0;
+  return (diagnostico.value.escoreFinal / 1000) * 100;
+});
+
+// 2. Define as cores intuitivas
+const scoreColorClasses = computed(() => {
+  if (!diagnostico.value) return { text: 'text-gray-600', bg: 'bg-gray-600' };
+
+  const score = diagnostico.value.escoreFinal;
+
+  if (score <= 500) { // Baixa ou Inexistente
+    return { text: 'text-red-600', bg: 'bg-red-500' };
+  }
+  if (score <= 750) { // Moderada
+    return { text: 'text-yellow-600', bg: 'bg-yellow-500' };
+  }
+  return { text: 'text-green-600', bg: 'bg-green-500' }; // Sustentável
+});
+// --- FIM DO NOVO BLOCO ---
+
 
 const fetchRelatorio = async () => {
   try {
@@ -134,12 +164,11 @@ const fetchRelatorio = async () => {
     if (!userStore.user) {
       await userStore.fetchUser();
     }
-    // Agora, carrega o diagnóstico E a empresa vinculada a ele
-    const response = await api.get(`/diagnosticos/${props.id}?with=empresa`);
+    const response = await api.get(`/diagnosticos/${props.id}`);
     diagnostico.value = response.data;
   } catch (error) {
     console.error('Erro ao buscar relatório:', error);
-    toast.error('Não foi possível carregar o relatório.'); // <-- 5. Toast no erro
+    toast.error('Não foi possível carregar o relatório.');
     if (error.response && error.response.status === 401) {
       router.push('/login');
     }
@@ -162,11 +191,14 @@ const principiosComPercentual = computed(() => {
 });
 
 const formatarData = (dataISO) => {
-  const data = new Date(dataISO);
-  return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  // Corrigido para lidar com fuso horário (bug da data)
+  if (!dataISO) return '';
+  const dataApenas = dataISO.split('T')[0];
+  const partes = dataApenas.split('-');
+  if (partes.length !== 3) return dataISO;
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
 };
 
-// Função de Download do PDF (Corrigida com Toast)
 const handleDownloadPDF = async () => {
   isDownloading.value = true;
   try {
@@ -176,7 +208,7 @@ const handleDownloadPDF = async () => {
     const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
     const link = document.createElement('a');
     link.href = url;
-    const fileName = `SisDISE_Relatorio_${props.id}.pdf`;
+    const fileName = `SisDISE_Relatorio_${diagnostico.value.titulo || props.id}.pdf`;
     link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
@@ -184,7 +216,7 @@ const handleDownloadPDF = async () => {
     window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Erro ao baixar PDF:', error);
-    toast.error('Erro ao gerar o PDF. Verifique o servidor.'); // <-- 6. Toast no erro
+    toast.error('Erro ao gerar o PDF. Verifique o servidor.');
   } finally {
     isDownloading.value = false;
   }

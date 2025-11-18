@@ -5,7 +5,17 @@
     </div>
 
     <div v-else class="bg-white p-6 rounded-lg shadow-md">
-      <h1 class="text-3xl font-bold text-gray-900 mb-4">Novo Diagnóstico</h1>
+
+      <div class="flex justify-between items-center mb-4">
+        <h1 class="text-3xl font-bold text-gray-900">Novo Diagnóstico</h1>
+        <button
+          v-if="hasDraft"
+          @click="clearDraft"
+          class="px-3 py-1 text-sm font-medium text-red-600 bg-red-100 rounded-full hover:bg-red-200"
+        >
+          Limpar Rascunho
+        </button>
+      </div>
 
       <div class="mb-6">
         <div class="flex justify-between mb-1">
@@ -19,9 +29,10 @@
           ></div>
         </div>
       </div>
+
       <form class="space-y-8" @submit.prevent="handleSubmit">
 
-        <div v-if="currentStep === 0" class="space-y-4">
+        <div v-if="currentStep === 0" class="space-y-4 bg-gray-50 p-4 rounded-lg shadow-sm">
           <h2 class="text-2xl font-semibold text-gray-800">Passo 1: Detalhes do Diagnóstico</h2>
 
           <div>
@@ -62,16 +73,21 @@
               Grupo {{ index + 1 }}: {{ grupo.nome }}
             </h2>
 
-            <div v-for="item in grupo.item_parametros" :key="item.id" class="border-b border-gray-200 pb-4">
-              <p class="text-md font-medium text-gray-700">
+            <div
+              v-for="item in grupo.item_parametros"
+              :key="item.id"
+              class="bg-gray-50 p-4 rounded-lg shadow-sm space-y-3"
+            >
+
+              <p class="text-md font-medium text-gray-900">
                 {{ item.codigo_item }}. {{ item.descricao }}
               </p>
 
-              <div class="mt-3">
+              <div>
                 <label :for="`item-select-${item.id}`" class="block text-sm font-medium text-gray-700">Classificação:</label>
                 <select
                   :id="`item-select-${item.id}`"
-                  v-model="respostas[item.id]"
+                  v-model.number="respostas[item.id]"
                   class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-light focus:border-primary-light"
                 >
                   <option
@@ -84,7 +100,15 @@
                   </option>
                 </select>
               </div>
-            </div>
+
+              <div
+                v-if="respostas[item.id] !== null && getHint(respostas[item.id])"
+                class="p-2 bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-md"
+              >
+                <strong>Critério (Nota {{ respostas[item.id] }}):</strong>
+                {{ getHint(respostas[item.id]) }}
+              </div>
+              </div>
           </div>
         </div>
 
@@ -97,7 +121,6 @@
           >
             Anterior
           </button>
-
           <button
             v-if="currentStep < totalSteps"
             type="button"
@@ -106,7 +129,6 @@
           >
             Próximo
           </button>
-
           <button
             v-if="currentStep === totalSteps"
             type="submit"
@@ -116,14 +138,13 @@
             {{ isSubmitting ? 'Calculando...' : 'Finalizar e Calcular Escore' }}
           </button>
         </div>
-
       </form>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/api.js';
 import { useUserStore } from '@/stores/userStore';
@@ -139,6 +160,14 @@ const notaOptions = [
   { value: 5, text: '5 - Monitora e divulga (Excelente)' }
 ];
 
+// (NOVO) Função para extrair a Dica
+const getHint = (nota) => {
+  if (nota === null) return '';
+  const option = notaOptions.find(o => o.value === nota);
+  const hintMatch = option.text.match(/\((.*?)\)/);
+  return hintMatch ? hintMatch[1] : '';
+};
+
 const currentStep = ref(0);
 const totalSteps = computed(() => grupos.value.length);
 
@@ -150,16 +179,60 @@ const progressoPercentual = computed(() => {
 const grupos = ref([]);
 const empresas = ref([]);
 const selectedEmpresa = ref(null);
-const tituloDiagnostico = ref(''); // <-- A variável do Título
+const tituloDiagnostico = ref('');
 const respostas = ref({});
+const hasDraft = ref(false);
 
 const isLoading = ref(true);
 const isSubmitting = ref(false);
 const router = useRouter();
 const userStore = useUserStore();
 const toast = useToast();
-// errorMessage foi removido (corrigindo o Vue warn)
 
+// --- (NOVO) Função para gerar a chave única do usuário ---
+const getDraftKey = () => {
+  if (userStore.user && userStore.user.id) {
+    return `sisdise_draft_user_${userStore.user.id}`;
+  }
+  return null;
+};
+
+// VIGIAR (Watch): Salva no localStorage com a chave do usuário
+watch([respostas, selectedEmpresa, tituloDiagnostico, currentStep],
+  ([newRespostas, newEmpresa, newTitulo, newStep]) => {
+    const key = getDraftKey();
+    if (key) {
+      const draft = {
+        empresaId: newEmpresa,
+        titulo: newTitulo,
+        step: newStep,
+        respostas: newRespostas
+      };
+      localStorage.setItem(key, JSON.stringify(draft));
+      hasDraft.value = true;
+    }
+  },
+  { deep: true }
+);
+
+// LIMPAR (Clear)
+const clearDraft = () => {
+  if (window.confirm('Tem certeza que deseja apagar seu progresso salvo e recomeçar?')) {
+    const key = getDraftKey();
+    if (key) localStorage.removeItem(key);
+
+    hasDraft.value = false;
+    selectedEmpresa.value = null;
+    tituloDiagnostico.value = '';
+    currentStep.value = 0;
+    Object.keys(respostas.value).forEach(key => {
+      respostas.value[key] = null;
+    });
+    toast.info("Rascunho limpo. Pode começar de novo.");
+  }
+};
+
+// Lógica de Carregamento
 onMounted(() => {
   fetchInitialData();
 });
@@ -170,17 +243,38 @@ const fetchInitialData = async () => {
     if (!userStore.user) {
       await userStore.fetchUser();
     }
+
     const [questionarioResponse, empresasResponse] = await Promise.all([
       api.get('/questionario'),
       api.get('/empresas')
     ]);
+
     grupos.value = questionarioResponse.data;
     empresas.value = empresasResponse.data;
-    for (const grupo of questionarioResponse.data) {
-      for (const item of grupo.item_parametros) {
-        respostas.value[item.id] = null;
+
+    // --- Carregar Rascunho do Usuário Específico ---
+    const key = getDraftKey();
+    let draftRespostas = {};
+
+    if (key) {
+      const savedDraft = localStorage.getItem(key);
+      if (savedDraft) {
+        toast.info("Seu rascunho salvo foi carregado.");
+        const draft = JSON.parse(savedDraft);
+        selectedEmpresa.value = draft.empresaId;
+        tituloDiagnostico.value = draft.titulo;
+        currentStep.value = draft.step || 0;
+        draftRespostas = draft.respostas || {};
+        hasDraft.value = true;
       }
     }
+
+    for (const grupo of questionarioResponse.data) {
+      for (const item of grupo.item_parametros) {
+        respostas.value[item.id] = draftRespostas[item.id] || null;
+      }
+    }
+
   } catch (error) {
     console.error('Erro ao buscar dados iniciais:', error);
     toast.error('Não foi possível carregar os dados. Tente novamente.');
@@ -192,19 +286,18 @@ const fetchInitialData = async () => {
   }
 };
 
+// Navegação
 const nextStep = () => {
   if (currentStep.value === 0) {
     if (!selectedEmpresa.value) {
       toast.error('Erro: Por favor, selecione uma empresa para diagnosticar.');
       return;
     }
-    // Adiciona a validação do título
     if (!tituloDiagnostico.value.trim()) {
       toast.error('Erro: Por favor, insira um título para este diagnóstico.');
       return;
     }
   }
-
   if (currentStep.value > 0 && currentStep.value <= totalSteps.value) {
     const grupoAtual = grupos.value[currentStep.value - 1];
     const todasRespondidas = grupoAtual.item_parametros.every(item => {
@@ -215,7 +308,6 @@ const nextStep = () => {
       return;
     }
   }
-
   if (currentStep.value < totalSteps.value) {
     currentStep.value++;
   }
@@ -227,6 +319,7 @@ const prevStep = () => {
   }
 };
 
+// Envio
 const handleSubmit = async () => {
   isSubmitting.value = true;
 
@@ -234,7 +327,7 @@ const handleSubmit = async () => {
   if (!todasRespondidas || !selectedEmpresa.value || !tituloDiagnostico.value.trim()) {
     toast.error('Erro: Certifique-se de que a empresa, o título e todas as 39 perguntas estão preenchidos.');
     isSubmitting.value = false;
-    currentStep.value = 0; // Volta ao primeiro passo se faltar empresa/título
+    currentStep.value = 0;
     return;
   }
 
@@ -246,7 +339,6 @@ const handleSubmit = async () => {
   });
 
   try {
-    // CORRIGIDO: Adiciona o 'titulo' ao payload final
     const payloadFinal = {
       empresa_id: selectedEmpresa.value,
       titulo: tituloDiagnostico.value,
@@ -257,6 +349,12 @@ const handleSubmit = async () => {
     const diagnosticoSalvo = response.data;
 
     toast.success("Diagnóstico salvo! A calcular relatório...");
+
+    // Remove o rascunho específico deste usuário
+    const key = getDraftKey();
+    if (key) localStorage.removeItem(key);
+    hasDraft.value = false;
+
     router.push(`/relatorio/${diagnosticoSalvo.id}`);
 
   } catch (error) {
