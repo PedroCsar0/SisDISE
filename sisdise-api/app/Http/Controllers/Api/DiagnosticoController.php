@@ -117,14 +117,14 @@ class DiagnosticoController extends Controller
 
                 $principioPai = $mapPrincipioGrupo[$grupo->codigo];
 
-                // --- ESTA É A CORREÇÃO CRÍTICA (que causa o bug do "0") ---
+
                 $principioPai->parametroAvaliacaos()->create([
                     'descricao'     => $grupo->nome,
                     'nota'          => $somaNotasGrupo_Eni,
                     'peso'          => $pi,
-                    'escore_obtido' => $escoreGrupo_si, // <-- CORRIGIDO (Salva o Escore, ex: 120)
+                    'escore_obtido' => $escoreGrupo_si,
                 ]);
-                // --- FIM DA CORREÇÃO ---
+
 
                 $principioPai->escoreObtido += $escoreGrupo_si;
             }
@@ -210,5 +210,38 @@ class DiagnosticoController extends Controller
 
         $fileName = 'SisDISE_PlanoDeAcao_' . $diagnostico->id . '.pdf';
         return $pdf->stream($fileName);
+    }
+
+    public function destroy(Diagnostico $diagnostico)
+    {
+        // 1. Verificação de Segurança
+        $user = auth()->user();
+
+        if ($diagnostico->user_id !== $user->id && $user->tipo !== 'Administrador') {
+            return response()->json(['message' => 'Você não tem permissão para excluir este diagnóstico.'], 403);
+        }
+
+        // 2. Limpeza Manual dos Dados Relacionados (Para evitar erro de Foreign Key)
+
+        // A. Apaga os Itens de Resposta (as 39 notas)
+        $diagnostico->itens()->delete();
+
+        // B. Apaga o Plano de Ação (se existir)
+        if ($diagnostico->pge) {
+             $diagnostico->pge->delete();
+        }
+
+        // C. Apaga os Princípios e seus Parâmetros
+        foreach ($diagnostico->principios as $principio) {
+            // Apaga os parâmetros de avaliação dentro do princípio
+            $principio->parametroAvaliacaos()->delete();
+            // Apaga o princípio
+            $principio->delete();
+        }
+
+        // 3. Finalmente, exclui o diagnóstico "pai"
+        $diagnostico->delete();
+
+        return response()->noContent();
     }
 }

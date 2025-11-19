@@ -3,19 +3,27 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // \App\Models\User::factory(10)->create();
+        // 1. Primeiro, cria os Parâmetros (Obrigatório)
+        $this->call(ParametroTemplateSeeder::class);
 
-        $this->call([
-            ParametroTemplateSeeder::class,
-            // Outros seeders podem ser adicionados aqui
-        ]);
+        // 2. Cria o Admin Principal (Sempre fixo)
+        User::firstOrCreate(
+            ['email' => 'admin@sisdise.com'],
+            [
+                'name' => 'Admin do Sistema',
+                'password' => Hash::make('admin123'),
+                'tipo' => 'Administrador'
+            ]
+        );
+
+        // 3. Cria os Dados de Demonstração (Avaliadores, Empresas, Diagnósticos)
+        $this->call(DemoSeeder::class);
     }
 }

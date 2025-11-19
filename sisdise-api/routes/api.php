@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\DiagnosticoController;
 use App\Http\Controllers\Api\EmpresaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PasswordResetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,7 +19,9 @@ use Illuminate\Support\Facades\Route;
 // (Não precisam de login)
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
-
+// --- Rotas de Senha ---
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink']);
+Route::post('/reset-password', [PasswordResetController::class, 'reset']);
 
 // === ROTAS PROTEGIDAS (Exigem Login) ===
 Route::middleware('auth:sanctum')->group(function () {
@@ -37,11 +41,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('can:pode-gerir')->group(function () {
         // CRUD de Empresas
         Route::apiResource('empresas', EmpresaController::class);
-
         // Gestão de Diagnósticos
         Route::get('/questionario', [DiagnosticoController::class, 'getQuestionario']);
         Route::post('/diagnosticos', [DiagnosticoController::class, 'store']);
-
         // Gestão de Vínculos
         Route::get('/gestores-disponiveis', [EmpresaController::class, 'getGestoresDisponiveis']);
         Route::post('/empresas/{empresa}/vincular-gestor', [EmpresaController::class, 'vincularGestor']);
@@ -57,9 +59,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/relatorio/{diagnostico}/pdf', [DiagnosticoController::class, 'downloadPDF']);
     Route::get('/diagnosticos/{diagnostico}/pges', [DiagnosticoController::class, 'gerarPGES']);
     Route::get('/diagnosticos/{diagnostico}/pges/pdf', [DiagnosticoController::class, 'downloadPGES']);
+    Route::delete('/diagnosticos/{diagnostico}', [DiagnosticoController::class, 'destroy']);
 
     // Buscar o próprio utilizador
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+
+    // Rota de Perfil
+    Route::put('/profile', [ProfileController::class, 'update']);
 });

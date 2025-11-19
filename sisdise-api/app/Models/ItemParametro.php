@@ -14,6 +14,7 @@ class ItemParametro extends Model
         'grupo_parametro_id',
         'codigo_item',
         'descricao',
+        'recomendacao',
     ];
 
     // Uma Pergunta (Item) pertence a um Grupo

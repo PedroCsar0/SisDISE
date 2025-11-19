@@ -11,12 +11,11 @@ const api = axios.create({
   },
 });
 
-// Pega o token do localStorage se ele existir (quando recarregar a pág)
-const token = localStorage.getItem('authToken');
+// Tenta pegar do localStorage OU do sessionStorage
+const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+
 if (token) {
-  // Adiciona o header de autorização para esta sessão
   api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 }
 
-// 5. Exporta a instância para usarmos em outros arquivos
-export default api
+export default api;

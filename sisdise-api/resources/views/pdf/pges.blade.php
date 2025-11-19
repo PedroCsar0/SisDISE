@@ -149,6 +149,12 @@
                         <div class="criterio">
                             <strong>Justificativa da Nota:</strong> O critério para a nota {{ $item->nota }} é: "{{ $criterios[$item->nota] ?? 'Nota baixa' }}"
                         </div>
+                        <div style="margin-top: 10px; background-color: #f0fff4; padding: 10px; border-radius: 5px; border: 1px solid #c6f6d5;">
+                        <strong style="color: #2f855a;">Recomendação Técnica:</strong>
+                        <p style="maragin: 5px 0 0 0; font-size: 10pt; color: #2f855a;">
+                            {{ $item->itemParametro->recomendacao ?? 'Definir plano de ação corretiva.' }}
+                        </p>
+                        </div>
                     </div>
                 @endforeach
             @else

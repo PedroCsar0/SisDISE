@@ -20,10 +20,29 @@ const routes = [
     meta: { requiresAuth: false } // Esta rota não requer login
   },
   {
+  path: '/forgot-password',
+  name: 'forgot-password',
+  component: () => import('../views/ForgotPasswordView.vue'),
+  meta: { requiresAuth: false }
+  },
+  {
+  // O ':token' diz ao Vue que essa parte da URL é uma variável
+  path: '/password-reset/:token',
+  name: 'password-reset',
+  component: () => import('../views/ResetPasswordView.vue'),
+  meta: { requiresAuth: false } // Página pública
+  },
+  {
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('../views/DashboardView.vue'),
     meta: { requiresAuth: true } // Requer login (qualquer tipo)
+  },
+  {
+  path: '/perfil',
+  name: 'perfil',
+  component: () => import('../views/ProfileView.vue'),
+  meta: { requiresAuth: true }
   },
   {
     path: '/admin',
@@ -85,16 +104,26 @@ const routes = [
 // --- CRIAÇÃO DO ROUTER ---
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes
+  routes,
+
+  scrollBehavior(to, from, savedPosition) {
+
+    if (savedPosition) {
+      return savedPosition;
+    }
+
+    return { top: 0, behavior: 'smooth' };
+  }
 })
 
 // --- O "PORTEIRO" (NAVIGATION GUARD) ---
 router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore();
-  const token = localStorage.getItem('authToken');
 
-  // 1. Tentar buscar o utilizador se tivermos um token mas não tivermos dados no store
-  // (Isto é crucial para quem dá F5 na página)
+  // --- ALTERAÇÃO AQUI ---
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  // ----------------------
+
   if (token && !userStore.user) {
     await userStore.fetchUser();
   }
@@ -124,6 +153,7 @@ router.beforeEach(async (to, from, next) => {
   else {
     next(); // Permite o acesso
   }
+
 })
 
 export default router
