@@ -39,12 +39,16 @@
                 <p class="text-lg font-bold text-gray-900">{{ diagnostico.classificacao }}</p>
              </div>
           </div>
-          <div class="bg-gray-900 p-6 rounded-xl shadow-lg text-white flex justify-between items-center">
+          <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
             <div>
                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Score Total (Sf)</p>
-               <p class="text-3xl font-black">{{ diagnostico.escoreFinal.toFixed(0) }} <span class="text-lg text-gray-500 font-medium">/ 1000</span></p>
+               <div class="flex items-baseline gap-1">
+                 <p class="text-4xl font-black text-gray-900">{{ diagnostico.escoreFinal.toFixed(0) }}</p>
+                 <span class="text-sm text-gray-400 font-medium">/ 1000</span>
+               </div>
             </div>
-            <div class="h-12 w-12 rounded-full border-4 border-gray-700 flex items-center justify-center font-bold text-lg">
+            
+            <div class="h-20 w-20 rounded-full border-[6px] border-gray-100 bg-gray-50 flex items-center justify-center font-bold text-xl text-gray-700 shadow-inner">
                {{ (diagnostico.escoreFinal / 10).toFixed(0) }}%
             </div>
           </div>

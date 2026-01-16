@@ -1,7 +1,22 @@
 <template>
   <div class="animate-fade-in">
-    <div v-if="isLoading" class="flex justify-center items-center h-64">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    <div v-if="isLoading" class="animate-pulse space-y-8 max-w-7xl mx-auto">
+      <div class="h-10 bg-gray-300/50 rounded-lg w-1/3 mb-8"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div class="lg:col-span-2 space-y-8">
+          <div class="h-64 bg-white/80 rounded-2xl shadow-sm border border-white/40"></div>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="h-32 bg-white/80 rounded-2xl shadow-sm border border-white/40"></div>
+            <div class="h-32 bg-white/80 rounded-2xl shadow-sm border border-white/40"></div>
+            <div class="h-32 bg-white/80 rounded-2xl shadow-sm border border-white/40"></div>
+          </div>
+        </div>
+
+        <div class="h-[500px] bg-white/80 rounded-2xl lg:col-span-1 shadow-sm border border-white/40"></div>
+      </div>
     </div>
 
     <div v-else>

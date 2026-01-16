@@ -139,14 +139,22 @@ const isDownloading = ref(false);
 const fetchPGES = async () => {
   try {
     isLoading.value = true;
+    // O userStore.fetchUser() já é chamado no main.js, mas mal não faz checar
     if (!userStore.user) await userStore.fetchUser();
+    
     const response = await api.get(`/diagnosticos/${props.id}/pges`);
     itensParaMelhorar.value = response.data;
   } catch (error) {
-    console.error('Erro:', error);
-    toast.error('Erro ao carregar plano.');
-    if (error.response && error.response.status === 401) router.push('/login');
-  } finally { setTimeout(() => { isLoading.value = false; }, 300); }
+    console.error('Erro ao carregar plano:', error);
+    // Não precisamos checar 401 aqui, o interceptor já resolveu.
+    // Só avisamos se for outro erro (ex: 500 ou 404)
+    if (!error.response || error.response.status !== 401) {
+       toast.error('Não foi possível carregar o Plano de Ação.');
+    }
+  } finally { 
+    // Pequeno delay para a animação do skeleton não piscar muito rápido
+    setTimeout(() => { isLoading.value = false; }, 300); 
+  }
 };
 
 const handleDownloadPGES = async () => {
