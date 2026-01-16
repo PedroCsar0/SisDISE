@@ -2,14 +2,16 @@
   <div class="min-h-screen bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 font-sans text-gray-900">
 
     <header v-if="showHeader" class="sticky top-0 z-50">
-      <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-4">
-        <div class="bg-white/90 backdrop-blur-md shadow-lg rounded-2xl px-6 py-3 flex justify-between items-center border border-white/20">
+      <nav class="w-full bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-3">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
 
           <router-link to="/dashboard" class="flex items-center gap-3 group">
-            <div class="bg-indigo-50 p-2 rounded-full group-hover:bg-indigo-100 transition-colors">
-              <img class="h-8 w-auto" src="/src/assets/logo.svg" alt="SisDISE Logo" />
-            </div>
-            <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-dark to-primary">
+              <img 
+              src="/src/assets/logo-sisdise.png" 
+              alt="Logo" 
+              class="h-14 w-auto mr-3 transition-transform duration-300 hover:scale-110" 
+              />
+            <span class="text-xl font-bold text-gray-900">
               SisDISE Relatórios ESG
             </span>
           </router-link>

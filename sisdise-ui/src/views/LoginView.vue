@@ -5,13 +5,13 @@
       <div class="p-8 md:p-10">
 
         <div class="text-center mb-10">
-          <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-50 mb-4">
-            <img class="h-10 w-auto" src="/src/assets/logo.svg" alt="SisDISE Logo" />
-          </div>
-          <h2 class="text-3xl font-bold text-gray-900 tracking-tight">Bem-vindo</h2>
-          <p class="text-sm text-gray-500 mt-2">
-            Faça login para continuar
-          </p>
+        <div class="flex justify-center mb-2">
+          <img class="h-28 w-auto" src="/src/assets/logo-sisdise.png" alt="SisDISE Logo" />
+        </div>
+
+        <h1 class="text-4xl font-black text-black mb-1 tracking-tight">SisDISE</h1>
+
+        <h2 class="text-xl font-medium text-gray-500">Bem-vindo</h2>
         </div>
 
         <form class="space-y-6" @submit.prevent="handleLogin">
