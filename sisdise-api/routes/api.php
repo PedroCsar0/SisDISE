@@ -51,14 +51,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // --- Rotas Comuns (Todos os tipos, incluindo 'Gestor Empresarial') ---
 
-    // Ver Relatórios
-    Route::get('/diagnosticos/{diagnostico}', [DiagnosticoController::class, 'show']);
-    Route::get('/diagnosticos', [DiagnosticoController::class, 'index']); // O Controller já filtra por tipo
-
-    // Downloads
+    // 1. ROTAS ESPECÍFICAS (Devem vir PRIMEIRO)
+    // Downloads e PGES
     Route::get('/relatorio/{diagnostico}/pdf', [DiagnosticoController::class, 'downloadPDF']);
     Route::get('/diagnosticos/{diagnostico}/pges', [DiagnosticoController::class, 'gerarPGES']);
     Route::get('/diagnosticos/{diagnostico}/pges/pdf', [DiagnosticoController::class, 'downloadPGES']);
+
+    // 2. LISTAGEM GERAL
+    Route::get('/diagnosticos', [DiagnosticoController::class, 'index']); 
+
+    // 3. ROTA GENÉRICA (Deve ser a ÚLTIMA, pois captura o ID)
+    Route::get('/diagnosticos/{diagnostico}', [DiagnosticoController::class, 'show']);
     Route::delete('/diagnosticos/{diagnostico}', [DiagnosticoController::class, 'destroy']);
 
     // Buscar o próprio utilizador
